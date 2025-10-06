@@ -5,7 +5,7 @@ export interface AvatarProps {
   src?: string;
   alt?: string;
   name?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
   className?: string;
 }
 
@@ -21,7 +21,8 @@ const Avatar: React.FC<AvatarProps> = ({
     md: 'w-10 h-10 text-base',
     lg: 'w-12 h-12 text-lg',
     xl: 'w-16 h-16 text-xl',
-  };
+    xxl: 'w-24 h-24 text-2xl',
+  } as const;
 
   const initials = name ? getInitials(name) : '?';
 

@@ -6,13 +6,15 @@ export interface BadgeProps {
   variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  title?: string; // optional native title attribute for tooltip
 }
 
 const Badge: React.FC<BadgeProps> = ({ 
   children, 
   variant = 'default', 
   size = 'md',
-  className 
+  className,
+  title
 }) => {
   const variants = {
     default: 'bg-gray-100 text-gray-800 border border-gray-200',
@@ -36,6 +38,7 @@ const Badge: React.FC<BadgeProps> = ({
         sizes[size],
         className
       )}
+      title={title}
     >
       {children}
     </span>
