@@ -14,11 +14,12 @@ import {
   LogOut,
   Menu,
   X,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/utils/helpers';
 import { useAuthStore } from '@/context/authStore';
 
-const navItems = [
+const baseNavItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Payments', href: '/payments', icon: CreditCard },
   { name: 'Tutors', href: '/tutors', icon: GraduationCap },
@@ -29,7 +30,14 @@ const navItems = [
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
-  const { logout } = useAuthStore();
+  const { logout, hasRole } = useAuthStore();
+  const navItems = React.useMemo(() => {
+    const items = [...baseNavItems];
+    if (hasRole(['admin', 'super_admin'])) {
+      items.splice(1, 0, { name: 'Admin', href: '/admin', icon: ShieldCheck }); // insert after Dashboard
+    }
+    return items;
+  }, [hasRole]);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const handleLogout = () => {
@@ -118,7 +126,14 @@ export const MobileSidebar: React.FC<{ isOpen: boolean; onClose: () => void }> =
   onClose,
 }) => {
   const pathname = usePathname();
-  const { logout } = useAuthStore();
+  const { logout, hasRole } = useAuthStore();
+  const navItems = React.useMemo(() => {
+    const items = [...baseNavItems];
+    if (hasRole(['admin', 'super_admin'])) {
+      items.splice(1, 0, { name: 'Admin', href: '/admin', icon: ShieldCheck });
+    }
+    return items;
+  }, [hasRole]);
 
   const handleLogout = () => {
     logout();

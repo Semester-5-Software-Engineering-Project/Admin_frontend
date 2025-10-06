@@ -1,10 +1,13 @@
 // User & Authentication Types
+// Central role union so it can be reused in guards/components
+export type UserRole = 'admin' | 'super_admin';
+
 export interface Admin {
   id: string;
   name: string;
   email: string;
   profilePicture?: string;
-  role: 'admin' | 'super_admin';
+  role: UserRole;
   createdAt: string;
 }
 
@@ -18,6 +21,23 @@ export interface AuthResponse {
   user: Admin;
   token: string;
   refreshToken: string;
+}
+
+// Admin Management
+export interface CreateAdminPayload {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole; // 'admin' or 'super_admin' (only super_admin can assign super_admin ideally)
+  profilePicture?: File | string; // optional - can be multipart upload
+}
+
+export interface CreateAdminResponse {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  createdAt: string;
 }
 
 // Tutor Types

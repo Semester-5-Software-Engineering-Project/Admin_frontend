@@ -9,11 +9,13 @@ interface AuthState {
   setAuth: (user: Admin, token: string) => void;
   logout: () => void;
   updateUser: (user: Partial<Admin>) => void;
+  hasRole: (roles: string | string[]) => boolean;
+  isSuperAdmin: () => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
@@ -39,6 +41,16 @@ export const useAuthStore = create<AuthState>()(
           return { user: newUser };
         });
       },
+      hasRole: (roles) => {
+        const { user } = get();
+        if (!user) return false;
+        const list = Array.isArray(roles) ? roles : [roles];
+        return list.includes(user.role);
+      },
+      isSuperAdmin: () => {
+        const { user } = get();
+        return user?.role === 'super_admin';
+      }
     }),
     {
       name: 'auth-storage',
