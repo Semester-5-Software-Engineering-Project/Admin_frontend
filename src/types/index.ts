@@ -201,3 +201,39 @@ export interface ApiError {
   statusCode: number;
   errors?: Record<string, string[]>;
 }
+
+// Backend Entity Types for Tutor API
+export interface TutorEntity {
+  tutorId: string;
+  user: {
+    id: string;
+    email: string;
+    username?: string;
+  };
+  firstName: string;
+  lastName: string;
+  address: string;
+  city: string;
+  country: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
+  dob: string; // LocalDate from backend
+  phoneNo: string;
+  lastAccessed?: string; // LocalDate from backend
+  image?: string;
+  portfolio?: string;
+  bio?: string;
+  status: 'PENDING' | 'APPROVED' | 'BANNED';
+  createdAt: string; // LocalDateTime from backend
+  updatedAt: string; // LocalDateTime from backend
+}
+
+export interface ModuelsDto {
+  moduleId: string;
+  tutorId: string;
+  name: string;
+  domain: string;
+  averageRatings: number;
+  fee: number;
+  duration: string; // Duration from backend as string
+  status: string;
+}
