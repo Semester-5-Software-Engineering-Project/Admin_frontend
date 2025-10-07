@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -31,13 +31,20 @@ const baseNavItems = [
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
   const { logout, hasRole } = useAuthStore();
+  // Hydration guard: ensure the first client render matches SSR markup (which never has admin link)
+  // This avoids a hydration mismatch when persisted auth state (admin role) appears only on the client.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   const navItems = React.useMemo(() => {
     const items = [...baseNavItems];
-    if (hasRole(['admin', 'super_admin'])) {
+    if (hydrated && hasRole(['admin', 'super_admin'])) {
       items.splice(1, 0, { name: 'Admin', href: '/admin', icon: ShieldCheck }); // insert after Dashboard
     }
     return items;
-  }, [hasRole]);
+  }, [hasRole, hydrated]);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const handleLogout = () => {
@@ -127,13 +134,19 @@ export const MobileSidebar: React.FC<{ isOpen: boolean; onClose: () => void }> =
 }) => {
   const pathname = usePathname();
   const { logout, hasRole } = useAuthStore();
+  // Use same hydration guard to keep SSR/CSR output stable
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   const navItems = React.useMemo(() => {
     const items = [...baseNavItems];
-    if (hasRole(['admin', 'super_admin'])) {
+    if (hydrated && hasRole(['admin', 'super_admin'])) {
       items.splice(1, 0, { name: 'Admin', href: '/admin', icon: ShieldCheck });
     }
     return items;
-  }, [hasRole]);
+  }, [hasRole, hydrated]);
 
   const handleLogout = () => {
     logout();

@@ -1,13 +1,14 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-interface LineChartProps {
-  data: any[];
-  dataKeys: { key: string; color: string; name: string }[];
-  xAxisKey: string;
+interface GenericDatum { [key: string]: number | string | null | undefined; }
+interface LineChartProps<T extends GenericDatum = GenericDatum> {
+  data: T[];
+  dataKeys: { key: keyof T & string; color: string; name: string }[];
+  xAxisKey: keyof T & string;
 }
 
-export const CustomLineChart: React.FC<LineChartProps> = ({ data, dataKeys, xAxisKey }) => {
+export const CustomLineChart = <T extends GenericDatum>({ data, dataKeys, xAxisKey }: LineChartProps<T>) => {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={data}>

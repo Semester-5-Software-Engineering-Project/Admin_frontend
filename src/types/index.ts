@@ -257,3 +257,43 @@ export interface ModuelsDto {
   duration: string; // Duration from backend as string
   status: string;
 }
+
+// Student Backend DTO Types
+export interface StudentEntityDto {
+  studentId: string;
+  user: {
+    id: string;
+    email: string;
+    username?: string;
+  };
+  firstName: string;
+  lastName: string;
+  address: string;
+  city: string;
+  country: string;
+  birthday?: string; // LocalDate
+  imageUrl?: string;
+  lastAccessed?: string; // LocalDate
+  isActive?: boolean;
+  phoneNumber: string;
+  bio?: string;
+  createdAt: string; // LocalDateTime
+  updatedAt: string; // LocalDateTime
+}
+
+export interface StudentTotalSpentResponse {
+  studentId: string;
+  totalSpent: number; // monetary amount
+  currency: string; // e.g. LKR
+}
+
+export interface StudentModuleDto {
+  moduleId: string;
+  tutorId: string;
+  name: string;
+  domain?: string; // domain name if provided separately
+  averageRatings: number;
+  fee: number;
+  duration?: string; // ISO-8601 duration string
+  status: string; // Draft | Active | Archived
+}
