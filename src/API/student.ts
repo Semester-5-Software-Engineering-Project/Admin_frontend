@@ -31,6 +31,29 @@ export async function fetchAllStudents(): Promise<StudentEntityDto[]> {
 	}
 }
 
+// Fetch single student by id (assumes backend endpoint). Fallback: filter from all.
+export async function fetchStudentById(studentId: string): Promise<StudentEntityDto | null> {
+	if (DEBUG_STUDENT) console.log('[studentAPI] fetchStudentById: request -> /student-profile/', studentId);
+	try {
+		// Assumption: backend exposes /student-profile/{id}
+		const { data } = await apiClient.get<unknown>(`/student-profile/${studentId}`);
+		const isEntity = (val: unknown): val is StudentEntityDto => typeof val === 'object' && val !== null && 'studentId' in val;
+		if (isEntity(data)) return data;
+		// If wrapped
+		const maybe = data as Partial<ApiResponse<StudentEntityDto>> | undefined;
+		if (maybe?.data && isEntity(maybe.data)) return maybe.data;
+	} catch (err) {
+		if (DEBUG_STUDENT) console.warn('[studentAPI] fetchStudentById: direct endpoint failed, attempting fallback', err);
+	}
+	try {
+		const all = await fetchAllStudents();
+		return all.find(s => s.studentId === studentId) || null;
+	} catch (err) {
+		if (DEBUG_STUDENT) console.error('[studentAPI] fetchStudentById: fallback failed', err);
+		return null;
+	}
+}
+
 // Ban a student
 export async function banStudent(studentId: string): Promise<void> {
 	if (DEBUG_STUDENT) console.log('[studentAPI] banStudent: banning', studentId);

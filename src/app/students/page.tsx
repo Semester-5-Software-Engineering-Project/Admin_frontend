@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Ban, Eye, Download, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -13,28 +14,27 @@ import Modal from '@/components/ui/Modal';
 import Avatar from '@/components/ui/Avatar';
 import EmptyState from '@/components/ui/EmptyState';
 import { downloadCSV } from '@/utils/helpers';
-
 import { fetchAllStudents, banStudent as apiBanStudent, unbanStudent as apiUnbanStudent, fetchStudentTotalSpent, fetchStudentModules, mapStudentEntityToUI, UIStudent } from '@/API/student';
+import type { StudentModuleDto } from '@/types';
 
 const DEBUG_STUDENT = process.env.NEXT_PUBLIC_DEBUG_STUDENT === 'true';
-import type { StudentModuleDto } from '@/types';
 
 interface EnrichedStudent extends UIStudent {
   loadingDetails?: boolean;
   modulesLoaded?: boolean;
-  totalSpentLoading?: boolean; // loading flag for total spent value
-  modulesLoading?: boolean; // loading flag for modules list
-  modulesError?: boolean; // indicates module fetch failed after retries
+  totalSpentLoading?: boolean;
+  modulesLoading?: boolean;
+  modulesError?: boolean;
 }
 
 export default function StudentsPage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState<EnrichedStudent | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-
   const [students, setStudents] = useState<EnrichedStudent[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadStudents = useCallback(async () => {
@@ -43,134 +43,94 @@ export default function StudentsPage() {
     setError(null);
     try {
       const entities = await fetchAllStudents();
-      if (DEBUG_STUDENT) console.log('[StudentsPage] loadStudents: fetched entities count', entities.length);
       const ui = entities.map(mapStudentEntityToUI);
       setStudents(ui);
-      if (DEBUG_STUDENT) console.log('[StudentsPage] loadStudents: mapped students', ui.slice(0, 3));
-    } catch (e: unknown) {
+      if (DEBUG_STUDENT) console.log('[StudentsPage] loadStudents: mapped count', ui.length);
+    } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to load students';
-      if (DEBUG_STUDENT) console.error('[StudentsPage] loadStudents: error', e);
       setError(msg);
     } finally {
       setLoading(false);
-      if (DEBUG_STUDENT) console.log('[StudentsPage] loadStudents: end');
     }
   }, []);
 
-  useEffect(() => {
-    loadStudents();
-  }, [loadStudents]);
+  useEffect(() => { loadStudents(); }, [loadStudents]);
 
-  // After students basic list loads, fetch each student's total spent in parallel (throttled) to populate table column.
-  // This avoids waiting for user to open modal to see monetary data.
+  // Batch fetch total spent
   const totalsFetchedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!loading && students.length > 0) {
-      const controller = new AbortController();
-      const fetchTotals = async () => {
-        const toFetch = students.filter(s => !totalsFetchedRef.current.has(s.id));
-        // Optimistically mark loading
-        if (toFetch.length === 0) return;
-        setStudents(prev => prev.map(s => toFetch.find(t => t.id === s.id) ? { ...s, totalSpentLoading: true } : s));
-        // Fire requests in small batches to avoid stampede (batch size 5)
-        const batchSize = 5;
-        for (let i = 0; i < toFetch.length; i += batchSize) {
-          const batch = toFetch.slice(i, i + batchSize);
-          await Promise.all(batch.map(async (stu) => {
-            try {
-              const res = await fetchStudentTotalSpent(stu.id);
-              totalsFetchedRef.current.add(stu.id);
-              setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, totalSpent: res.totalSpent ?? s.totalSpent, totalSpentLoading: false } : s));
-            } catch (err) {
-              if (DEBUG_STUDENT) console.warn('[StudentsPage] fetchStudentTotalSpent (table) error', stu.id, err);
-              setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, totalSpentLoading: false } : s));
-            }
-          }));
-          // Slight delay between batches to yield UI (100ms)
-          if (i + batchSize < toFetch.length) await new Promise(r => setTimeout(r, 100));
-        }
-      };
-      fetchTotals();
-      return () => controller.abort();
-    }
+    if (loading || students.length === 0) return;
+    const toFetch = students.filter(s => !totalsFetchedRef.current.has(s.id));
+    if (toFetch.length === 0) return;
+    setStudents(prev => prev.map(s => toFetch.some(t => t.id === s.id) ? { ...s, totalSpentLoading: true } : s));
+    const run = async () => {
+      const batchSize = 5;
+      for (let i = 0; i < toFetch.length; i += batchSize) {
+        const batch = toFetch.slice(i, i + batchSize);
+        await Promise.all(batch.map(async stu => {
+          try {
+            const res = await fetchStudentTotalSpent(stu.id);
+            totalsFetchedRef.current.add(stu.id);
+            setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, totalSpent: res.totalSpent, totalSpentLoading: false } : s));
+          } catch (err) {
+            if (DEBUG_STUDENT) console.warn('[StudentsPage] totalSpent error', stu.id, err);
+            setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, totalSpentLoading: false } : s));
+          }
+        }));
+        if (i + batchSize < toFetch.length) await new Promise(r => setTimeout(r, 100));
+      }
+    };
+    run();
   }, [loading, students]);
 
-  // Batch fetch modules for each student with retry + dedupe to avoid spamming 500 errors.
+  // Batch fetch modules (lightweight – similar pattern)
   const modulesFetchedRef = useRef<Set<string>>(new Set());
-  const modulesInFlightRef = useRef<Set<string>>(new Set());
-  const modulesRetryCountRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
     if (loading || students.length === 0) return;
+    const toFetch = students.filter(s => s.modulesEnrolled.length === 0 && !modulesFetchedRef.current.has(s.id));
+    if (toFetch.length === 0) return;
+    setStudents(prev => prev.map(s => toFetch.some(t => t.id === s.id) ? { ...s, modulesLoading: true, modulesError: false } : s));
     const run = async () => {
-      const candidates = students.filter(s => !modulesFetchedRef.current.has(s.id) && !modulesInFlightRef.current.has(s.id));
-      if (candidates.length === 0) return;
-      // Mark loading state
-      setStudents(prev => prev.map(s => candidates.some(c => c.id === s.id) ? { ...s, modulesLoading: true, modulesError: false } : s));
       const batchSize = 4;
-      for (let i = 0; i < candidates.length; i += batchSize) {
-        const batch = candidates.slice(i, i + batchSize);
-        batch.forEach(b => modulesInFlightRef.current.add(b.id));
+      for (let i = 0; i < toFetch.length; i += batchSize) {
+        const batch = toFetch.slice(i, i + batchSize);
         await Promise.all(batch.map(async stu => {
           try {
             const mods = await fetchStudentModules(stu.id);
             modulesFetchedRef.current.add(stu.id);
-            setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, modulesEnrolled: mods.map(m => m.name), modulesLoaded: true, modulesLoading: false, modulesError: false } : s));
+            setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, modulesEnrolled: mods.map(m => m.name), modulesLoaded: true, modulesLoading: false } : s));
           } catch (err) {
-            const prevRetries = modulesRetryCountRef.current.get(stu.id) || 0;
-            const nextRetries = prevRetries + 1;
-            modulesRetryCountRef.current.set(stu.id, nextRetries);
-            const giveUp = nextRetries >= 2; // max 2 attempts
-            if (DEBUG_STUDENT) console.warn('[StudentsPage] fetchStudentModules error', { id: stu.id, attempt: nextRetries, giveUp, err });
-            if (giveUp) {
-              modulesFetchedRef.current.add(stu.id); // prevent further attempts this session
-              setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, modulesLoading: false, modulesLoaded: true, modulesError: true } : s));
-            } else {
-              // Brief backoff before next attempt
-              await new Promise(r => setTimeout(r, 300 * nextRetries));
-              modulesInFlightRef.current.delete(stu.id); // allow re-pick on next effect pass
-            }
-          } finally {
-            if (modulesInFlightRef.current.has(stu.id) && modulesFetchedRef.current.has(stu.id)) {
-              modulesInFlightRef.current.delete(stu.id);
-            }
+            if (DEBUG_STUDENT) console.warn('[StudentsPage] modules error', stu.id, err);
+            modulesFetchedRef.current.add(stu.id);
+            setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, modulesLoading: false, modulesError: true } : s));
           }
         }));
-        if (i + batchSize < candidates.length) await new Promise(r => setTimeout(r, 120));
+        if (i + batchSize < toFetch.length) await new Promise(r => setTimeout(r, 120));
       }
     };
     run();
   }, [loading, students]);
 
   const handleBanStudent = async (studentId: string) => {
-    if (DEBUG_STUDENT) console.log('[StudentsPage] handleBanStudent: attempting', studentId);
     try {
       await apiBanStudent(studentId);
       setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status: 'banned' } : s));
-      if (DEBUG_STUDENT) console.log('[StudentsPage] handleBanStudent: success', studentId);
       toast.error('Student has been banned.');
-    } catch (e: unknown) {
+    } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to ban student';
-      if (DEBUG_STUDENT) console.error('[StudentsPage] handleBanStudent: error', studentId, e);
       toast.error(msg);
-    } finally {
-      setShowDetailsModal(false);
-    }
+    } finally { setShowDetailsModal(false); }
   };
 
   const handleUnbanStudent = async (studentId: string) => {
-    if (DEBUG_STUDENT) console.log('[StudentsPage] handleUnbanStudent: attempting', studentId);
     try {
       await apiUnbanStudent(studentId);
       setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status: 'active' } : s));
-      if (DEBUG_STUDENT) console.log('[StudentsPage] handleUnbanStudent: success', studentId);
       toast.success('Student has been unbanned.');
-    } catch (e: unknown) {
+    } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to unban student';
-      if (DEBUG_STUDENT) console.error('[StudentsPage] handleUnbanStudent: error', studentId, e);
       toast.error(msg);
-    } finally {
-      setShowDetailsModal(false);
-    }
+    } finally { setShowDetailsModal(false); }
   };
 
   const handleExportCSV = () => {
@@ -187,17 +147,13 @@ export default function StudentsPage() {
   };
 
   const filteredStudents = students.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const search = searchTerm.toLowerCase();
+    const matchesSearch = student.name.toLowerCase().includes(search) || student.email.toLowerCase().includes(search);
     const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusBadge = (status: string) => {
-    return status === 'active' 
-      ? <Badge variant="success">Active</Badge>
-      : <Badge variant="danger">Banned</Badge>;
-  };
+  const getStatusBadge = (status: string) => status === 'active' ? <Badge variant="success">Active</Badge> : <Badge variant="danger">Banned</Badge>;
 
   const stats = {
     total: students.length,
@@ -207,16 +163,13 @@ export default function StudentsPage() {
   };
 
   const loadStudentDetails = async (student: EnrichedStudent) => {
-    if (DEBUG_STUDENT) console.log('[StudentsPage] loadStudentDetails: start', student.id);
-    // Avoid reloading if already loaded
     if (student.loadingDetails) return;
     setStudents(prev => prev.map(s => s.id === student.id ? { ...s, loadingDetails: true } : s));
     try {
       const [spent, modules] = await Promise.all([
-        fetchStudentTotalSpent(student.id).catch(err => { if (DEBUG_STUDENT) console.warn('[StudentsPage] loadStudentDetails: totalSpent error', student.id, err); return null; }),
-        fetchStudentModules(student.id).catch(err => { if (DEBUG_STUDENT) console.warn('[StudentsPage] loadStudentDetails: modules error', student.id, err); return [] as StudentModuleDto[]; })
+        fetchStudentTotalSpent(student.id).catch(() => null),
+        fetchStudentModules(student.id).catch(() => [] as StudentModuleDto[])
       ]);
-      if (DEBUG_STUDENT) console.log('[StudentsPage] loadStudentDetails: fetched', { spent, modulesLength: modules?.length });
       setStudents(prev => prev.map(s => s.id === student.id ? {
         ...s,
         totalSpent: spent?.totalSpent ?? s.totalSpent,
@@ -224,12 +177,13 @@ export default function StudentsPage() {
         modulesLoaded: true,
         loadingDetails: false,
       } : s));
-    } catch (e) {
-      if (DEBUG_STUDENT) console.error('[StudentsPage] loadStudentDetails: unexpected error', student.id, e);
+    } catch {
       setStudents(prev => prev.map(s => s.id === student.id ? { ...s, loadingDetails: false } : s));
-    } finally {
-      if (DEBUG_STUDENT) console.log('[StudentsPage] loadStudentDetails: end', student.id);
     }
+  };
+
+  const handleRowNavigate = (id: string) => {
+    router.push(`/students/${id}`);
   };
 
   return (
@@ -333,9 +287,17 @@ export default function StudentsPage() {
                         key={student.id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          const target = e.target as HTMLElement;
+                          if (target.closest('[data-row-action]')) return;
+                          handleRowNavigate(student.id);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleRowNavigate(student.id); }}
                       >
-                        <td className="p-4">
+                        <td className="p-4" onClick={(e)=>{e.stopPropagation(); handleRowNavigate(student.id);}}>
                           <div className="flex items-center gap-3">
                             <Avatar name={student.name} />
                             <div>
@@ -344,7 +306,7 @@ export default function StudentsPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="p-4">
+                        <td className="p-4" onClick={(e)=>{e.stopPropagation(); handleRowNavigate(student.id);}}>
                           <div className="flex flex-wrap gap-1">
                             {student.modulesLoading && student.modulesEnrolled.length === 0 && !student.modulesError && (
                               <span className="text-text-light text-xs animate-pulse">Loading...</span>
@@ -365,16 +327,16 @@ export default function StudentsPage() {
                             )}
                           </div>
                         </td>
-                        <td className="p-4 font-semibold text-text">
+                        <td className="p-4 font-semibold text-text" onClick={(e)=>{e.stopPropagation(); handleRowNavigate(student.id);}}>
                           {student.totalSpentLoading ? (
                             <span className="animate-pulse text-text-light text-sm">Loading...</span>
                           ) : (
                             `$${(student.totalSpent ?? 0).toFixed(2)}`
                           )}
                         </td>
-                        <td className="p-4 text-text-light">{student.enrolledAt}</td>
-                        <td className="p-4">{getStatusBadge(student.status)}</td>
-                        <td className="p-4">
+                        <td className="p-4 text-text-light" onClick={(e)=>{e.stopPropagation(); handleRowNavigate(student.id);}}>{student.enrolledAt}</td>
+                        <td className="p-4" onClick={(e)=>{e.stopPropagation(); handleRowNavigate(student.id);}}>{getStatusBadge(student.status)}</td>
+                        <td className="p-4" data-row-action>
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
@@ -386,6 +348,7 @@ export default function StudentsPage() {
                               }}
                               className="p-2 rounded-xl hover:bg-blue-50 text-blue-500 transition-colors"
                               title="View Profile"
+                              data-row-action
                             >
                               <Eye size={18} />
                             </button>
@@ -394,6 +357,7 @@ export default function StudentsPage() {
                                 onClick={() => handleBanStudent(student.id)}
                                 className="p-2 rounded-xl hover:bg-red-50 text-red-500 transition-colors"
                                 title="Ban Student"
+                                data-row-action
                               >
                                 <Ban size={18} />
                               </button>
@@ -402,6 +366,7 @@ export default function StudentsPage() {
                                 onClick={() => handleUnbanStudent(student.id)}
                                 className="p-2 rounded-xl hover:bg-green-50 text-green-500 transition-colors"
                                 title="Unban Student"
+                                data-row-action
                               >
                                 <Badge size="sm" variant="success">Unban</Badge>
                               </button>
