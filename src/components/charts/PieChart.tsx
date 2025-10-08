@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, PieLabelRenderProps } from 'recharts';
 
 interface PieChartProps {
   data: { name: string; value: number }[];
@@ -18,7 +18,12 @@ export const CustomPieChart: React.FC<PieChartProps> = ({
           cx="50%"
           cy="50%"
           labelLine={false}
-          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+          label={(props: PieLabelRenderProps) => {
+            const name = (props as PieLabelRenderProps & { name?: string }).name;
+            const percent = props.percent;
+            const p = typeof percent === 'number' ? percent * 100 : 0;
+            return `${name ?? ''}: ${p.toFixed(0)}%`;
+          }}
           outerRadius={100}
           fill="#8884d8"
           dataKey="value"

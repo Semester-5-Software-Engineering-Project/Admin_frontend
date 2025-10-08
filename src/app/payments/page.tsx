@@ -144,10 +144,10 @@ export default function PaymentsPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-gray-200">
-          {['requests', 'history'].map((tab) => (
+          {(['requests', 'history'] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setSelectedTab(tab as any)}
+              onClick={() => setSelectedTab(tab)}
               className={`px-6 py-3 font-medium transition-colors capitalize ${
                 selectedTab === tab
                   ? 'text-primary border-b-2 border-primary'

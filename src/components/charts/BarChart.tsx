@@ -1,13 +1,14 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-interface BarChartProps {
-  data: any[];
-  dataKeys: { key: string; color: string; name: string }[];
-  xAxisKey: string;
+interface GenericDatum { [key: string]: number | string | null | undefined; }
+interface BarChartProps<T extends GenericDatum = GenericDatum> {
+  data: T[];
+  dataKeys: { key: keyof T & string; color: string; name: string }[];
+  xAxisKey: keyof T & string;
 }
 
-export const CustomBarChart: React.FC<BarChartProps> = ({ data, dataKeys, xAxisKey }) => {
+export const CustomBarChart = <T extends GenericDatum>({ data, dataKeys, xAxisKey }: BarChartProps<T>) => {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data}>

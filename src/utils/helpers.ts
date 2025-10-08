@@ -43,7 +43,7 @@ export function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength) + '...';
 }
 
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
@@ -64,11 +64,12 @@ export function validateEmail(email: string): boolean {
   return re.test(email);
 }
 
-export function downloadCSV(data: any[], filename: string): void {
+export function downloadCSV<T extends Record<string, unknown>>(data: T[], filename: string): void {
+  if (!data.length) return;
   const headers = Object.keys(data[0]);
   const csv = [
     headers.join(','),
-    ...data.map(row => headers.map(header => JSON.stringify(row[header] ?? '')).join(','))
+    ...data.map(row => headers.map(header => JSON.stringify((row as Record<string, unknown>)[header] ?? '')).join(','))
   ].join('\n');
   
   const blob = new Blob([csv], { type: 'text/csv' });

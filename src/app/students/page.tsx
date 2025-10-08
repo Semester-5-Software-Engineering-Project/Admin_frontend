@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Ban, Eye, Download, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -13,76 +14,123 @@ import Modal from '@/components/ui/Modal';
 import Avatar from '@/components/ui/Avatar';
 import EmptyState from '@/components/ui/EmptyState';
 import { downloadCSV } from '@/utils/helpers';
+import { fetchAllStudents, banStudent as apiBanStudent, unbanStudent as apiUnbanStudent, fetchStudentTotalSpent, fetchStudentModules, mapStudentEntityToUI, UIStudent } from '@/API/student';
+import type { StudentModuleDto } from '@/types';
 
-interface Student {
-  id: string;
-  name: string;
-  email: string;
-  modulesEnrolled: string[];
-  status: 'active' | 'banned';
-  totalSpent: number;
-  enrolledAt: string;
+const DEBUG_STUDENT = process.env.NEXT_PUBLIC_DEBUG_STUDENT === 'true';
+
+interface EnrichedStudent extends UIStudent {
+  loadingDetails?: boolean;
+  modulesLoaded?: boolean;
+  totalSpentLoading?: boolean;
+  modulesLoading?: boolean;
+  modulesError?: boolean;
 }
 
 export default function StudentsPage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<EnrichedStudent | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [students, setStudents] = useState<EnrichedStudent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [students, setStudents] = useState<Student[]>([
-    {
-      id: '1',
-      name: 'Alice Brown',
-      email: 'alice@example.com',
-      modulesEnrolled: ['Mathematics 101', 'Physics'],
-      status: 'active',
-      totalSpent: 250,
-      enrolledAt: '2025-01-15',
-    },
-    {
-      id: '2',
-      name: 'Bob Martinez',
-      email: 'bob@example.com',
-      modulesEnrolled: ['Computer Science', 'Programming', 'Data Structures'],
-      status: 'active',
-      totalSpent: 450,
-      enrolledAt: '2025-02-20',
-    },
-    {
-      id: '3',
-      name: 'Charlie Lee',
-      email: 'charlie@example.com',
-      modulesEnrolled: ['English Literature'],
-      status: 'banned',
-      totalSpent: 100,
-      enrolledAt: '2025-03-10',
-    },
-    {
-      id: '4',
-      name: 'Diana Prince',
-      email: 'diana@example.com',
-      modulesEnrolled: ['Chemistry', 'Biology'],
-      status: 'active',
-      totalSpent: 320,
-      enrolledAt: '2025-04-05',
-    },
-  ]);
+  const loadStudents = useCallback(async () => {
+    if (DEBUG_STUDENT) console.log('[StudentsPage] loadStudents: start');
+    setLoading(true);
+    setError(null);
+    try {
+      const entities = await fetchAllStudents();
+      const ui = entities.map(mapStudentEntityToUI);
+      setStudents(ui);
+      if (DEBUG_STUDENT) console.log('[StudentsPage] loadStudents: mapped count', ui.length);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to load students';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const handleBanStudent = (studentId: string) => {
-    setStudents(prev =>
-      prev.map(s => s.id === studentId ? { ...s, status: 'banned' as const } : s)
-    );
-    toast.error('Student has been banned.');
-    setShowDetailsModal(false);
+  useEffect(() => { loadStudents(); }, [loadStudents]);
+
+  // Batch fetch total spent
+  const totalsFetchedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (loading || students.length === 0) return;
+    const toFetch = students.filter(s => !totalsFetchedRef.current.has(s.id));
+    if (toFetch.length === 0) return;
+    setStudents(prev => prev.map(s => toFetch.some(t => t.id === s.id) ? { ...s, totalSpentLoading: true } : s));
+    const run = async () => {
+      const batchSize = 5;
+      for (let i = 0; i < toFetch.length; i += batchSize) {
+        const batch = toFetch.slice(i, i + batchSize);
+        await Promise.all(batch.map(async stu => {
+          try {
+            const res = await fetchStudentTotalSpent(stu.id);
+            totalsFetchedRef.current.add(stu.id);
+            setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, totalSpent: res.totalSpent, totalSpentLoading: false } : s));
+          } catch (err) {
+            if (DEBUG_STUDENT) console.warn('[StudentsPage] totalSpent error', stu.id, err);
+            setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, totalSpentLoading: false } : s));
+          }
+        }));
+        if (i + batchSize < toFetch.length) await new Promise(r => setTimeout(r, 100));
+      }
+    };
+    run();
+  }, [loading, students]);
+
+  // Batch fetch modules (lightweight – similar pattern)
+  const modulesFetchedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (loading || students.length === 0) return;
+    const toFetch = students.filter(s => s.modulesEnrolled.length === 0 && !modulesFetchedRef.current.has(s.id));
+    if (toFetch.length === 0) return;
+    setStudents(prev => prev.map(s => toFetch.some(t => t.id === s.id) ? { ...s, modulesLoading: true, modulesError: false } : s));
+    const run = async () => {
+      const batchSize = 4;
+      for (let i = 0; i < toFetch.length; i += batchSize) {
+        const batch = toFetch.slice(i, i + batchSize);
+        await Promise.all(batch.map(async stu => {
+          try {
+            const mods = await fetchStudentModules(stu.id);
+            modulesFetchedRef.current.add(stu.id);
+            setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, modulesEnrolled: mods.map(m => m.name), modulesLoaded: true, modulesLoading: false } : s));
+          } catch (err) {
+            if (DEBUG_STUDENT) console.warn('[StudentsPage] modules error', stu.id, err);
+            modulesFetchedRef.current.add(stu.id);
+            setStudents(prev => prev.map(s => s.id === stu.id ? { ...s, modulesLoading: false, modulesError: true } : s));
+          }
+        }));
+        if (i + batchSize < toFetch.length) await new Promise(r => setTimeout(r, 120));
+      }
+    };
+    run();
+  }, [loading, students]);
+
+  const handleBanStudent = async (studentId: string) => {
+    try {
+      await apiBanStudent(studentId);
+      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status: 'banned' } : s));
+      toast.error('Student has been banned.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to ban student';
+      toast.error(msg);
+    } finally { setShowDetailsModal(false); }
   };
 
-  const handleUnbanStudent = (studentId: string) => {
-    setStudents(prev =>
-      prev.map(s => s.id === studentId ? { ...s, status: 'active' as const } : s)
-    );
-    toast.success('Student has been unbanned.');
-    setShowDetailsModal(false);
+  const handleUnbanStudent = async (studentId: string) => {
+    try {
+      await apiUnbanStudent(studentId);
+      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status: 'active' } : s));
+      toast.success('Student has been unbanned.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to unban student';
+      toast.error(msg);
+    } finally { setShowDetailsModal(false); }
   };
 
   const handleExportCSV = () => {
@@ -99,23 +147,43 @@ export default function StudentsPage() {
   };
 
   const filteredStudents = students.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const search = searchTerm.toLowerCase();
+    const matchesSearch = student.name.toLowerCase().includes(search) || student.email.toLowerCase().includes(search);
     const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusBadge = (status: string) => {
-    return status === 'active' 
-      ? <Badge variant="success">Active</Badge>
-      : <Badge variant="danger">Banned</Badge>;
-  };
+  const getStatusBadge = (status: string) => status === 'active' ? <Badge variant="success">Active</Badge> : <Badge variant="danger">Banned</Badge>;
 
   const stats = {
     total: students.length,
     active: students.filter(s => s.status === 'active').length,
     banned: students.filter(s => s.status === 'banned').length,
-    totalRevenue: students.reduce((sum, s) => sum + s.totalSpent, 0),
+    totalRevenue: students.reduce((sum, s) => sum + (s.totalSpent || 0), 0),
+  };
+
+  const loadStudentDetails = async (student: EnrichedStudent) => {
+    if (student.loadingDetails) return;
+    setStudents(prev => prev.map(s => s.id === student.id ? { ...s, loadingDetails: true } : s));
+    try {
+      const [spent, modules] = await Promise.all([
+        fetchStudentTotalSpent(student.id).catch(() => null),
+        fetchStudentModules(student.id).catch(() => [] as StudentModuleDto[])
+      ]);
+      setStudents(prev => prev.map(s => s.id === student.id ? {
+        ...s,
+        totalSpent: spent?.totalSpent ?? s.totalSpent,
+        modulesEnrolled: (modules || []).map(m => m.name),
+        modulesLoaded: true,
+        loadingDetails: false,
+      } : s));
+    } catch {
+      setStudents(prev => prev.map(s => s.id === student.id ? { ...s, loadingDetails: false } : s));
+    }
+  };
+
+  const handleRowNavigate = (id: string) => {
+    router.push(`/students/${id}`);
   };
 
   return (
@@ -156,12 +224,6 @@ export default function StudentsPage() {
               <h3 className="text-2xl font-bold text-red-600">{stats.banned}</h3>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-text-light text-sm">Total Revenue</p>
-              <h3 className="text-2xl font-bold text-text">${stats.totalRevenue.toLocaleString()}</h3>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Filters */}
@@ -195,7 +257,13 @@ export default function StudentsPage() {
             <CardTitle>All Students</CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredStudents.length === 0 ? (
+            {loading && (
+              <div className="p-6 text-center text-text-light">Loading students...</div>
+            )}
+            {error && !loading && (
+              <div className="p-6 text-center text-red-500">{error}</div>
+            )}
+            {!loading && !error && filteredStudents.length === 0 ? (
               <EmptyState
                 title="No students found"
                 description="Try adjusting your search or filter criteria"
@@ -219,9 +287,17 @@ export default function StudentsPage() {
                         key={student.id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          const target = e.target as HTMLElement;
+                          if (target.closest('[data-row-action]')) return;
+                          handleRowNavigate(student.id);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleRowNavigate(student.id); }}
                       >
-                        <td className="p-4">
+                        <td className="p-4" onClick={(e)=>{e.stopPropagation(); handleRowNavigate(student.id);}}>
                           <div className="flex items-center gap-3">
                             <Avatar name={student.name} />
                             <div>
@@ -230,8 +306,17 @@ export default function StudentsPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="p-4">
+                        <td className="p-4" onClick={(e)=>{e.stopPropagation(); handleRowNavigate(student.id);}}>
                           <div className="flex flex-wrap gap-1">
+                            {student.modulesLoading && student.modulesEnrolled.length === 0 && !student.modulesError && (
+                              <span className="text-text-light text-xs animate-pulse">Loading...</span>
+                            )}
+                            {student.modulesError && student.modulesEnrolled.length === 0 && (
+                              <span className="text-red-500 text-xs" title="Failed to load modules">Error</span>
+                            )}
+                            {!student.modulesLoading && !student.modulesError && student.modulesEnrolled.length === 0 && (
+                              <span className="text-text-light text-xs">None</span>
+                            )}
                             {student.modulesEnrolled.slice(0, 2).map((module, idx) => (
                               <Badge key={idx} size="sm">{module}</Badge>
                             ))}
@@ -242,18 +327,28 @@ export default function StudentsPage() {
                             )}
                           </div>
                         </td>
-                        <td className="p-4 font-semibold text-text">${student.totalSpent}</td>
-                        <td className="p-4 text-text-light">{student.enrolledAt}</td>
-                        <td className="p-4">{getStatusBadge(student.status)}</td>
-                        <td className="p-4">
+                        <td className="p-4 font-semibold text-text" onClick={(e)=>{e.stopPropagation(); handleRowNavigate(student.id);}}>
+                          {student.totalSpentLoading ? (
+                            <span className="animate-pulse text-text-light text-sm">Loading...</span>
+                          ) : (
+                            `$${(student.totalSpent ?? 0).toFixed(2)}`
+                          )}
+                        </td>
+                        <td className="p-4 text-text-light" onClick={(e)=>{e.stopPropagation(); handleRowNavigate(student.id);}}>{student.enrolledAt}</td>
+                        <td className="p-4" onClick={(e)=>{e.stopPropagation(); handleRowNavigate(student.id);}}>{getStatusBadge(student.status)}</td>
+                        <td className="p-4" data-row-action>
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
                                 setSelectedStudent(student);
                                 setShowDetailsModal(true);
+                                if (!student.modulesLoaded) {
+                                  loadStudentDetails(student);
+                                }
                               }}
                               className="p-2 rounded-xl hover:bg-blue-50 text-blue-500 transition-colors"
                               title="View Profile"
+                              data-row-action
                             >
                               <Eye size={18} />
                             </button>
@@ -262,6 +357,7 @@ export default function StudentsPage() {
                                 onClick={() => handleBanStudent(student.id)}
                                 className="p-2 rounded-xl hover:bg-red-50 text-red-500 transition-colors"
                                 title="Ban Student"
+                                data-row-action
                               >
                                 <Ban size={18} />
                               </button>
@@ -270,6 +366,7 @@ export default function StudentsPage() {
                                 onClick={() => handleUnbanStudent(student.id)}
                                 className="p-2 rounded-xl hover:bg-green-50 text-green-500 transition-colors"
                                 title="Unban Student"
+                                data-row-action
                               >
                                 <Badge size="sm" variant="success">Unban</Badge>
                               </button>
@@ -306,14 +403,17 @@ export default function StudentsPage() {
             <div>
               <label className="text-sm font-medium text-text-light">Enrolled Modules</label>
               <div className="flex flex-wrap gap-2 mt-2">
-                {selectedStudent.modulesEnrolled.map((module, idx) => (
+                {selectedStudent.modulesEnrolled.length === 0 && (
+                  <span className="text-text-light text-sm">{students.find(s => s.id === selectedStudent.id)?.loadingDetails ? 'Loading modules...' : 'No modules enrolled'}</span>
+                )}
+                {selectedStudent.modulesEnrolled.map((module: string, idx: number) => (
                   <Badge key={idx}>{module}</Badge>
                 ))}
               </div>
             </div>
             <div>
               <label className="text-sm font-medium text-text-light">Total Spent</label>
-              <p className="text-text font-semibold text-lg">${selectedStudent.totalSpent}</p>
+              <p className="text-text font-semibold text-lg">${selectedStudent.totalSpent?.toFixed(2) || '0.00'}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-text-light">Enrolled Since</label>

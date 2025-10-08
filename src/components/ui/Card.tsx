@@ -16,13 +16,16 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
     };
 
     if (hoverable) {
+      // Framer Motion typing conflict workaround: cast props to any minimally.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const motionProps: any = props;
       return (
         <motion.div
-          ref={ref}
+          ref={ref as React.Ref<HTMLDivElement>}
           whileHover={{ y: -4 }}
           transition={{ duration: 0.2 }}
           className={cn(variants[variant], className)}
-          {...(props as any)}
+          {...motionProps}
         >
           {children}
         </motion.div>
