@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import Protected from '@/components/auth/Protected';
 import { Ban, Eye, Download, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -187,6 +188,7 @@ export default function StudentsPage() {
   };
 
   return (
+    <Protected>
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
@@ -443,5 +445,6 @@ export default function StudentsPage() {
         )}
       </Modal>
     </DashboardLayout>
+    </Protected>
   );
 }

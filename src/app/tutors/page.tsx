@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import Protected from '@/components/auth/Protected';
 import { Check, Ban, Mail, Search, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -218,6 +219,7 @@ export default function TutorsPage() {
   }
 
   return (
+    <Protected>
     <DashboardLayout>
       <div className="p-6 space-y-6">
         {/* Debug toggle */}
@@ -536,5 +538,6 @@ export default function TutorsPage() {
         </Modal>
       </div>
     </DashboardLayout>
+    </Protected>
   );
 }

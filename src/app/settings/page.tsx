@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import Protected from '@/components/auth/Protected';
 import { User, Lock, Bell, Save, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -10,17 +11,74 @@ import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import Avatar from '@/components/ui/Avatar';
 import { useAuthStore } from '@/context/authStore';
+import { adminAPI } from '@/API/admin';
+import { AdminProfileDto } from '@/types';
 
 export default function SettingsPage() {
   const { user, updateUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'notifications'>('profile');
 
   // Profile settings
-  const [profileData, setProfileData] = useState({
-    name: user?.name || '',
+  const [loadingProfile, setLoadingProfile] = useState<boolean>(true);
+  const [profileExists, setProfileExists] = useState<boolean>(false);
+  const [editMode, setEditMode] = useState<boolean>(false);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [profileData, setProfileData] = useState<AdminProfileDto>({
+    fullName: user?.name || '',
     email: user?.email || '',
-    contact: '',
+    contactNumber: '',
+    bio: '',
+    imageUrl: undefined,
   });
+
+  // Fetch existing profile from backend on mount
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        setLoadingProfile(true);
+        // First check existence quickly
+        const exists = await adminAPI.checkProfileExists();
+        setProfileExists(exists);
+        if (!exists) {
+          setEditMode(true); // directly allow creation
+          return;
+        }
+        const profile = await adminAPI.getProfile();
+        if (!ignore && profile) {
+          setProfileData({
+            fullName: profile.fullName || user?.name || '',
+            email: profile.email || user?.email || '',
+            contactNumber: profile.contactNumber,
+            bio: profile.bio,
+            imageUrl: profile.imageUrl,
+            adminId: profile.adminId,
+          });
+          setProfileExists(true);
+          // Keep auth store display updated (non-destructive)
+          updateUser({ name: profile.fullName, email: profile.email, profilePicture: profile.imageUrl });
+        }
+      } catch (err: unknown) {
+        interface AxiosLikeError { response?: { status?: number } }
+        const status = (err as AxiosLikeError)?.response?.status;
+        if (status === 404) {
+          // Profile not created yet - silent
+          setProfileExists(false);
+          setEditMode(true);
+        } else if (status === 401) {
+          console.warn('Unauthorized fetching profile');
+        } else {
+          console.warn('Error fetching profile', err);
+          toast.error('Could not load profile');
+        }
+      } finally {
+        if (!ignore) setLoadingProfile(false);
+      }
+    })();
+    return () => { ignore = true; };
+    // We intentionally only react to user id changes; suppress exhaustive deps for name/email
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Security settings
   const [securityData, setSecurityData] = useState({
@@ -29,6 +87,7 @@ export default function SettingsPage() {
     confirmPassword: '',
     twoFactorEnabled: false,
   });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Notification settings
   const [notificationSettings, setNotificationSettings] = useState({
@@ -38,12 +97,35 @@ export default function SettingsPage() {
     studentActivity: false,
   });
 
-  const handleProfileUpdate = () => {
-    updateUser({ name: profileData.name, email: profileData.email });
-    toast.success('Profile updated successfully!');
+  const handleProfileUpdate = async () => {
+    try {
+      setSaving(true);
+      const saved = await adminAPI.saveProfile({
+        fullName: profileData.fullName,
+        email: profileData.email,
+        contactNumber: profileData.contactNumber,
+        bio: profileData.bio,
+        imageUrl: profileData.imageUrl,
+      });
+      // Update local auth store minimal fields
+      updateUser({ name: saved.fullName, email: saved.email, profilePicture: saved.imageUrl });
+      toast.success('Profile saved');
+    } catch (err: unknown) {
+      // Axios error shape
+      interface AxiosLike { response?: { data?: unknown }; message?: string }
+      const maybeAxios = err as AxiosLike;
+      let msg: unknown = maybeAxios?.response?.data || maybeAxios?.message || 'Failed to save profile';
+      if (msg && typeof msg === 'object') {
+        const obj = msg as Record<string, unknown> & { message?: string; error?: string };
+        msg = obj.message || obj.error || JSON.stringify(obj);
+      }
+      toast.error(String(msg));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (securityData.newPassword !== securityData.confirmPassword) {
       toast.error('Passwords do not match!');
       return;
@@ -52,13 +134,30 @@ export default function SettingsPage() {
       toast.error('Password must be at least 6 characters!');
       return;
     }
-    toast.success('Password changed successfully!');
-    setSecurityData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-      twoFactorEnabled: securityData.twoFactorEnabled,
-    });
+    try {
+      setChangingPassword(true);
+      await adminAPI.changePassword(securityData.newPassword);
+      toast.success('Password changed successfully');
+      setSecurityData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        twoFactorEnabled: securityData.twoFactorEnabled,
+      });
+    } catch (err: unknown) {
+  interface AxiosLikeError { response?: { data?: unknown } }
+      const data = (err as AxiosLikeError)?.response?.data;
+      let msg = 'Failed to change password';
+      if (typeof data === 'string') {
+        msg = data;
+      } else if (data && typeof data === 'object' && 'message' in (data as Record<string, unknown>)) {
+        const maybe = (data as { message?: unknown }).message;
+        if (typeof maybe === 'string') msg = maybe;
+      }
+      toast.error(msg);
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   const handleNotificationUpdate = () => {
@@ -72,6 +171,7 @@ export default function SettingsPage() {
   ];
 
   return (
+    <Protected>
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
@@ -110,29 +210,64 @@ export default function SettingsPage() {
           >
             <Card>
               <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <CardTitle>Profile Information</CardTitle>
+                  {profileExists && (
+                    <Button
+                      variant={editMode ? 'outline' : 'primary'}
+                      size="sm"
+                      onClick={() => setEditMode(e => !e)}
+                    >
+                      {editMode ? 'Cancel' : 'Edit'}
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Profile Picture */}
                 <div className="flex items-center gap-6">
-                  <Avatar src={user?.profilePicture} name={user?.name} size="xl" />
-                  <div>
-                    <Button variant="outline" size="sm" leftIcon={<Upload size={18} />}>
-                      Change Photo
-                    </Button>
-                    <p className="text-xs text-text-light mt-2">
-                      JPG, PNG or GIF (max. 2MB)
-                    </p>
+                  <Avatar src={profileData.imageUrl || user?.profilePicture} name={user?.name} size="xxl" />
+                  <div className="space-y-2">
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 2 * 1024 * 1024) {
+                              toast.error('Image too large (max 2MB)');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              setProfileData((prev) => ({ ...prev, imageUrl: reader.result as string }));
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      <Button variant="outline" size="sm" leftIcon={<Upload size={18} />}>Change Photo</Button>
+                    </label>
+                    <p className="text-xs text-text-light">JPG/PNG/GIF up to 2MB. Preview updates immediately.</p>
+                    {profileData.imageUrl && (
+                      <button
+                        onClick={() => setProfileData((p) => ({ ...p, imageUrl: undefined }))}
+                        className="text-xs text-red-500 hover:underline"
+                      >Remove</button>
+                    )}
                   </div>
                 </div>
 
                 {/* Form Fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {editMode ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
                     label="Full Name"
-                    value={profileData.name}
-                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                    placeholder="Enter your name"
+                    value={profileData.fullName}
+                    onChange={(e) => setProfileData({ ...profileData, fullName: e.target.value })}
+                    placeholder="Enter your full name"
                   />
                   <Input
                     label="Email Address"
@@ -143,19 +278,58 @@ export default function SettingsPage() {
                   />
                   <Input
                     label="Contact Number"
-                    value={profileData.contact}
-                    onChange={(e) => setProfileData({ ...profileData, contact: e.target.value })}
+                    value={profileData.contactNumber || ''}
+                    onChange={(e) => setProfileData({ ...profileData, contactNumber: e.target.value })}
                     placeholder="+1 (555) 000-0000"
                   />
-                </div>
+                  <Input
+                    label="Brief Bio"
+                    value={profileData.bio || ''}
+                    onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
+                    placeholder="Tell us about yourself"
+                  />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                    <div>
+                      <p className="text-text-light">Full Name</p>
+                      <p className="font-medium text-text">{profileData.fullName || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-text-light">Email</p>
+                      <p className="font-medium text-text break-all">{profileData.email || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-text-light">Contact Number</p>
+                      <p className="font-medium text-text">{profileData.contactNumber || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-text-light">Bio</p>
+                      <p className="font-medium text-text max-w-prose whitespace-pre-line">{profileData.bio || '—'}</p>
+                    </div>
+                  </div>
+                )}
 
-                <Button
-                  variant="primary"
-                  leftIcon={<Save size={20} />}
-                  onClick={handleProfileUpdate}
-                >
-                  Save Changes
-                </Button>
+                {editMode && (
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <Button
+                      variant="primary"
+                      leftIcon={<Save size={20} />}
+                      disabled={saving}
+                      onClick={async () => {
+                        await handleProfileUpdate();
+                        setEditMode(false);
+                        setProfileExists(true);
+                      }}
+                    >
+                      {saving ? 'Saving...' : (profileExists ? 'Save Changes' : 'Create Profile')}
+                    </Button>
+                    {loadingProfile && <p className="text-xs text-text-light animate-pulse">Loading profile...</p>}
+                    {!loadingProfile && !profileExists && (
+                      <p className="text-xs text-yellow-600">No profile yet – fill the form and save.</p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -200,8 +374,8 @@ export default function SettingsPage() {
                   }
                   placeholder="Confirm new password"
                 />
-                <Button variant="primary" onClick={handlePasswordChange}>
-                  Update Password
+                <Button variant="primary" onClick={handlePasswordChange} disabled={changingPassword}>
+                  {changingPassword ? 'Updating...' : 'Update Password'}
                 </Button>
               </CardContent>
             </Card>
@@ -290,5 +464,6 @@ export default function SettingsPage() {
         )}
       </div>
     </DashboardLayout>
+    </Protected>
   );
 }

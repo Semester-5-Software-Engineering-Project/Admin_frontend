@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Protected from '@/components/auth/Protected';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -121,6 +122,7 @@ export default function DashboardPage() {
   };
 
   return (
+    <Protected>
     <DashboardLayout>
       <motion.div
         variants={containerVariants}
@@ -145,7 +147,7 @@ export default function DashboardPage() {
                   src={user?.profilePicture}
                   name={user?.name}
                   size="xl"
-                  className="hidden md:block ring-4 ring-white shadow-xl"
+                  className="hidden md:block ring-4 ring-white shadow-xxl"
                 />
               </div>
             </CardContent>
@@ -270,5 +272,6 @@ export default function DashboardPage() {
         </motion.div>
       </motion.div>
     </DashboardLayout>
+    </Protected>
   );
 }

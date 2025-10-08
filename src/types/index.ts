@@ -1,6 +1,6 @@
 // User & Authentication Types
 // Central role union so it can be reused in guards/components
-export type UserRole = 'admin' | 'super_admin';
+export type UserRole = 'ADMIN' | 'SUPER_ADMIN';
 
 export interface Admin {
   id: string;
@@ -296,4 +296,26 @@ export interface StudentModuleDto {
   fee: number;
   duration?: string; // ISO-8601 duration string
   status: string; // Draft | Active | Archived
+}
+
+// Admin Profile DTO (backend create/update)
+export interface AdminProfileDto {
+  adminId?: string; // will be enforced server-side from auth token
+  fullName: string;
+  email: string;
+  contactNumber?: string;
+  bio?: string;
+  imageUrl?: string; // profile picture URL or base64 placeholder
+}
+
+// Admin Profile entity returned from backend after create/update
+export interface AdminProfileEntity {
+  adminId: string; // same as user id UUID
+  fullName: string;
+  email: string;
+  contactNumber?: string;
+  bio?: string;
+  imageUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

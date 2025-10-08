@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { TrendingUp, DollarSign, Award, BookOpen, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { CustomLineChart } from '@/components/charts/LineChart';
+import Protected from '@/components/auth/Protected';
 import { CustomBarChart } from '@/components/charts/BarChart';
 import { CustomPieChart } from '@/components/charts/PieChart';
 import Badge from '@/components/ui/Badge';
@@ -49,6 +49,7 @@ export default function ManagePage() {
   ];
 
   return (
+    <Protected>
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
@@ -261,5 +262,6 @@ export default function ManagePage() {
         </div>
       </div>
     </DashboardLayout>
+    </Protected>
   );
 }

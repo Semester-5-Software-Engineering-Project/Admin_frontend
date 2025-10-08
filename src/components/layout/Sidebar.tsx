@@ -39,10 +39,11 @@ export const Sidebar: React.FC = () => {
   }, []);
 
   const navItems = React.useMemo(() => {
+    if (!hydrated) return [];
+    // Only show if user has either ADMIN or SUPER_ADMIN
+    if (!hasRole(['ADMIN','SUPER_ADMIN'])) return [];
     const items = [...baseNavItems];
-    if (hydrated && hasRole(['admin', 'super_admin'])) {
-      items.splice(1, 0, { name: 'Admin', href: '/admin', icon: ShieldCheck }); // insert after Dashboard
-    }
+    items.splice(1, 0, { name: 'Admin', href: '/admin', icon: ShieldCheck });
     return items;
   }, [hasRole, hydrated]);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -141,10 +142,10 @@ export const MobileSidebar: React.FC<{ isOpen: boolean; onClose: () => void }> =
   }, []);
 
   const navItems = React.useMemo(() => {
+    if (!hydrated) return [];
+    if (!hasRole(['ADMIN','SUPER_ADMIN'])) return [];
     const items = [...baseNavItems];
-    if (hydrated && hasRole(['admin', 'super_admin'])) {
-      items.splice(1, 0, { name: 'Admin', href: '/admin', icon: ShieldCheck });
-    }
+    items.splice(1, 0, { name: 'Admin', href: '/admin', icon: ShieldCheck });
     return items;
   }, [hasRole, hydrated]);
 

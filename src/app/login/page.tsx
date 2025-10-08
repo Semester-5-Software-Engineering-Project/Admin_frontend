@@ -37,27 +37,42 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      // Mock login for demonstration
-      // Replace with actual API call: const response = await authAPI.login(data);
-      
-      // Simulating API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful response
-      const mockUser = {
-        id: '1',
-        name: 'Admin User',
-        email: data.email,
-        role: 'admin' as const,
-        createdAt: new Date().toISOString(),
-      };
-      
-      setAuth(mockUser, 'mock_token_12345');
-      toast.success('Login successful! Welcome back.');
+  const { email, password, rememberMe } = data;
+  // Exclude rememberMe from backend payload to avoid Kotlin Map<String,String> parsing issue
+  const auth = await authAPI.login({ email, password });
+      setAuth(auth.user, auth.token);
+
+      // If rememberMe is false, store token only in memory (localStorage already used by store).
+      // Optionally implement sessionStorage fallback here if needed.
+      if (!rememberMe) {
+        // We could remove persisted storage so it clears on tab close.
+        // Keeping current behavior for now; add logic if requirement changes.
+      }
+
+      toast.success('Login successful!');
       router.push('/dashboard');
-    } catch (error) {
-      toast.error('Login failed. Please check your credentials.');
-      console.error('Login error:', error);
+    } catch (err: unknown) {
+      // Granular error messaging
+      let message = 'Login failed. Please check your credentials.';
+      if (typeof err === 'object' && err && 'response' in err) {
+        type AxiosLikeError = { response?: { status?: number; data?: unknown } };
+        const axiosErr = err as AxiosLikeError;
+        const status = axiosErr.response?.status;
+        let serverMsg: string | undefined;
+        const data = axiosErr.response?.data;
+        if (typeof data === 'string') serverMsg = data;
+        else if (data && typeof data === 'object' && 'message' in data && typeof (data as { message: unknown }).message === 'string') {
+          serverMsg = (data as { message: string }).message;
+        }
+        if (status === 401) message = 'Invalid email or password.';
+        else if (serverMsg) message = serverMsg;
+      } else if (err instanceof Error) {
+        if (err.message === 'Malformed login response') {
+          message = 'Unexpected server response. Please try again later.';
+        }
+      }
+      toast.error(message);
+      console.error('Login error:', err);
     } finally {
       setIsLoading(false);
     }

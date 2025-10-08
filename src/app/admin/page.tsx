@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import RoleGuard from '@/components/auth/RoleGuard';
+import Protected from '@/components/auth/Protected';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
@@ -42,7 +42,7 @@ export default function AdminPanelPage() {
   ];
 
   return (
-    <RoleGuard allowed={['super_admin','admin']} redirect="/dashboard">
+    <Protected roles={['ADMIN','SUPER_ADMIN']} redirect="/dashboard">
       <DashboardLayout>
         <div className="space-y-8">
           <Card className="bg-gradient-to-br from-black via-gray-900 to-gray-800 text-white border-gray-700 shadow-xl">
@@ -92,6 +92,6 @@ export default function AdminPanelPage() {
           </Card>
         </div>
       </DashboardLayout>
-    </RoleGuard>
+    </Protected>
   );
 }

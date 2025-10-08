@@ -7,12 +7,23 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // allow sending cookies if backend uses them
 });
 
 // Request interceptor - Add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('auth_token');
+    let token: string | null = null;
+    try {
+      token = localStorage.getItem('auth_token');
+    } catch {
+      token = null;
+    }
+    // Fallback: read cookie if localStorage not available
+    if (!token && typeof document !== 'undefined') {
+      const match = document.cookie.match(/(?:^|; )AUTH_TOKEN=([^;]+)/);
+      if (match) token = decodeURIComponent(match[1]);
+    }
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

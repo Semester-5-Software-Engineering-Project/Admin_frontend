@@ -23,7 +23,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   const router = useRouter();
   const { user, isAuthenticated, hasRole } = useAuthStore();
 
-  const allowedList = Array.isArray(allowed) ? allowed : [allowed];
+  const allowedList = (Array.isArray(allowed) ? allowed : [allowed]).map(r => r.toUpperCase() as UserRole);
   const canAccess = user && hasRole(allowedList);
 
   useEffect(() => {
