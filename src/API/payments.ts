@@ -1,8 +1,14 @@
-import apiClient from '@/lib/axios';
+import { apiClient } from '@/lib/axios';
 import { PaymentRequest, PaymentHistory, ApiResponse, TableFilter } from '@/types';
 
 export const paymentsAPI = {
-  // Get all payment requests
+  // Get all withdrawal requests
+  getAllWithdrawals: async (): Promise<PaymentRequest[]> => {
+    const response = await apiClient.get('/admin/withdrawals/get-all-withdrawals');
+    return response.data;
+  },
+
+  // Get all payment requests (legacy)
   getPaymentRequests: async (filters?: TableFilter) => {
     const response = await apiClient.get<ApiResponse<{ payments: PaymentRequest[]; total: number }>>(
       '/payments/requests',
@@ -43,8 +49,38 @@ export const paymentsAPI = {
       totalPending: number;
       totalRejected: number;
       thisMonthPaid: number;
-    }>>('/payments/summary');
+    }>>('/admin/withdrawals/summary');
     return response.data.data;
+  },
+
+  // Get total pending amount
+  getTotalPending: async () => {
+    const response = await apiClient.get('/admin/withdrawals/total-pending');
+    return response.data.totalPendingAmount;
+  },
+
+  // Get total approved amount
+  getTotalApproved: async () => {
+    const response = await apiClient.get('/admin/withdrawals/total-approved');
+    return response.data.totalApprovedAmount;
+  },
+
+  // Get pending requests count
+  getPendingCount: async () => {
+    const response = await apiClient.get('/admin/withdrawals/pending-count');
+    return response.data.pendingRequests;
+  },
+
+  // Update withdrawal status
+  updateWithdrawalStatus: async (id: string, status: string) => {
+    const response = await apiClient.put(`/admin/withdrawals/${id}/status?status=${status}`);
+    return response.data;
+  },
+
+  // Process payment
+  processPayment: async (id: string) => {
+    const response = await apiClient.post(`/admin/withdrawals/pay/${id}`);
+    return response.data;
   },
 
   // Get tutor payment history
