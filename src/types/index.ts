@@ -71,6 +71,25 @@ export interface Student {
 
 // Payment Types
 export interface PaymentRequest {
+  withdrawalId: string;
+  tutorId: string;
+  tutorName: string;
+  amount: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
+  method: string; // e.g., BANK, EZCASH, PAYHERE
+  accountName: string;
+  bankName?: string; // optional if method != BANK
+  accountNumber: string;
+  notes?: string;
+  createdAt: string;
+  processedAt?: string;
+  adminId?: string;
+  transactionId?: string;
+  paidAt?: string;
+}
+
+// Legacy interface for compatibility (can be removed later)
+export interface LegacyPaymentRequest {
   id: string;
   tutorId: string;
   tutorName: string;
