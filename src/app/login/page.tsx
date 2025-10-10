@@ -10,13 +10,22 @@ import { Mail, Lock, LogIn } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import BokehAnimation from '@/components/ui/BokehAnimation';
 import { authAPI } from '@/API/auth';
 import { useAuthStore } from '@/context/authStore';
+
+type ServerErrorData = { message?: string; error?: string; code?: string };
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   rememberMe: z.boolean().optional(),
+  totpCode: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^\d{6}$/.test(val), {
+      message: 'Two-factor code must be 6 digits',
+    }),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -25,6 +34,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [showTotp, setShowTotp] = useState(false);
 
   const {
     register,
@@ -37,41 +47,103 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      // Mock login for demonstration
-      // Replace with actual API call: const response = await authAPI.login(data);
-      
-      // Simulating API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful response
-      const mockUser = {
-        id: '1',
-        name: 'Admin User',
-        email: data.email,
-        role: 'admin' as const,
-        createdAt: new Date().toISOString(),
-      };
-      
-      setAuth(mockUser, 'mock_token_12345');
-      toast.success('Login successful! Welcome back.');
-      router.push('/dashboard');
-    } catch (error) {
-      toast.error('Login failed. Please check your credentials.');
-      console.error('Login error:', error);
+      const { email, password, rememberMe } = data;
+
+      // If we're not showing TOTP yet, first attempt login WITHOUT totpCode.
+      if (!showTotp) {
+        try {
+          const auth = await authAPI.login({ email, password });
+          setAuth(auth.user, auth.token);
+          if (!rememberMe) {
+            // Optional: use session storage in future
+          }
+          toast.success('Login successful!');
+          router.push('/dashboard');
+          return; // done
+        } catch (err: unknown) {
+          // Inspect if server indicates TOTP is required; if so, reveal TOTP field
+          let handledAsTotpRequired = false;
+          if (typeof err === 'object' && err && 'response' in err) {
+            type AxiosLikeError = { response?: { status?: number; data?: unknown } };
+            const axiosErr = err as AxiosLikeError;
+            const status = axiosErr.response?.status;
+            const rawData = axiosErr.response?.data as ServerErrorData | string | undefined;
+            const serverErrorCode: string | undefined =
+              typeof rawData === 'object' && rawData ? (rawData.error ?? rawData.code) : undefined;
+            if (status === 401 && serverErrorCode === 'TOTP_REQUIRED') {
+              handledAsTotpRequired = true;
+              setShowTotp(true);
+              toast('Two-factor authentication is enabled for this account. Enter your 6-digit code.');
+            }
+          }
+          if (!handledAsTotpRequired) {
+            // Not a TOTP-required case; rethrow to generic error handler below
+            throw err;
+          }
+        } finally {
+          setIsLoading(false);
+        }
+        return; // Wait for user to input TOTP and resubmit
+      }
+
+      // If we are showing TOTP, validate and attempt login WITH totpCode
+      if (showTotp) {
+        if (!data.totpCode || !/^\d{6}$/.test(data.totpCode)) {
+          toast.error('Please enter a valid 6-digit code');
+          return;
+        }
+        const auth = await authAPI.login({ email, password, totpCode: data.totpCode });
+        setAuth(auth.user, auth.token);
+        if (!rememberMe) {
+          // Optional: use session storage in future
+        }
+        toast.success('Login successful!');
+        router.push('/dashboard');
+        return;
+      }
+    } catch (err: unknown) {
+      let message = 'Login failed. Please check your credentials.';
+      if (typeof err === 'object' && err && 'response' in err) {
+        type AxiosLikeError = { response?: { status?: number; data?: unknown } };
+        const axiosErr = err as AxiosLikeError;
+        const status = axiosErr.response?.status;
+        const rawData = axiosErr.response?.data as ServerErrorData | string | undefined;
+        const serverMsg: string | undefined =
+          typeof rawData === 'string'
+            ? rawData
+            : (rawData && typeof rawData === 'object' && typeof rawData.message === 'string')
+              ? rawData.message
+              : undefined;
+        const serverErrorCode: string | undefined =
+          typeof rawData === 'object' && rawData ? (rawData.error ?? rawData.code) : undefined;
+        if (status === 401) {
+          if (serverErrorCode === 'TOTP_INVALID') {
+            message = 'Invalid two-factor code. Please try again.';
+          } else if (serverErrorCode === 'TOTP_REQUIRED') {
+            // Show TOTP input if not already visible
+            if (!showTotp) setShowTotp(true);
+            message = 'Two-factor code required. Please enter the 6-digit code.';
+          } else {
+            message = 'Invalid email or password.';
+          }
+        } else if (serverMsg) message = serverMsg;
+      } else if (err instanceof Error) {
+        if (err.message === 'Malformed login response') {
+          message = 'Unexpected server response. Please try again later.';
+        }
+      }
+      toast.error(message);
+      console.error('Login error:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Decorative background elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-yellow-400/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-yellow-300/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-yellow-200/5 to-gray-200/5 rounded-full blur-3xl"></div>
-      </div>
-
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Bokeh Animation Background */}
+      <BokehAnimation />
+      
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -134,6 +206,17 @@ export default function LoginPage() {
               {...register('password')}
             />
 
+            {(showTotp) && (
+              <Input
+                label="Two-factor code"
+                type="text"
+                placeholder="6-digit code"
+                leftIcon={<Lock size={20} />}
+                error={errors.totpCode?.message}
+                {...register('totpCode')}
+              />
+            )}
+
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input
@@ -160,7 +243,7 @@ export default function LoginPage() {
               isLoading={isLoading}
               rightIcon={<LogIn size={20} />}
             >
-              Sign In
+              {showTotp ? 'Verify & Sign In' : 'Continue'}
             </Button>
           </form>
 

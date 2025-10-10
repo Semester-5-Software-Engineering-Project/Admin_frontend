@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import Protected from '@/components/auth/Protected';
 import { Check, X, Eye, Filter, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -141,6 +142,7 @@ export default function PaymentsPage() {
   };
 
   return (
+    <Protected>
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
@@ -439,5 +441,6 @@ export default function PaymentsPage() {
         )}
       </Modal>
     </DashboardLayout>
+    </Protected>
   );
 }

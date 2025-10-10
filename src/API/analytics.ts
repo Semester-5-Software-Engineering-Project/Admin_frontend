@@ -4,10 +4,19 @@ import {
   RecentActivity, 
   Announcement, 
   AnalyticsData,
+  AnalyticsOverviewDto,
   ApiResponse 
 } from '@/types';
 
 export const analyticsAPI = {
+  // Admin analytics overview (Spring: /api/admin/analytics/overview)
+  getAdminAnalyticsOverview: async (): Promise<AnalyticsOverviewDto> => {
+    const response = await apiClient.get<ApiResponse<AnalyticsOverviewDto> | AnalyticsOverviewDto>('/admin/analytics/overview');
+    // Support both wrapped and unwrapped responses
+    const body = response.data as ApiResponse<AnalyticsOverviewDto>;
+    const maybeWrapped = (body as Partial<ApiResponse<AnalyticsOverviewDto>>).data;
+    return (maybeWrapped ?? (response.data as AnalyticsOverviewDto));
+  },
   // Get dashboard stats
   getDashboardStats: async (): Promise<DashboardStats> => {
     const response = await apiClient.get<ApiResponse<DashboardStats>>('/analytics/dashboard');
