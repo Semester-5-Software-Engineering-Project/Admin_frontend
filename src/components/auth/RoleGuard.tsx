@@ -21,12 +21,13 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   loadingFallback = <div className="p-8 text-center text-sm text-gray-500">Checking permissions...</div>,
 }) => {
   const router = useRouter();
-  const { user, isAuthenticated, hasRole } = useAuthStore();
+  const { user, isAuthenticated, hasRole, hydrated } = useAuthStore();
 
   const allowedList = (Array.isArray(allowed) ? allowed : [allowed]).map(r => r.toUpperCase() as UserRole);
   const canAccess = user && hasRole(allowedList);
 
   useEffect(() => {
+    if (!hydrated) return; // wait for hydration before deciding
     if (!isAuthenticated) {
       router.replace('/login');
       return;
@@ -34,8 +35,9 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     if (isAuthenticated && user && !canAccess) {
       router.replace(redirect);
     }
-  }, [isAuthenticated, user, canAccess, router, redirect]);
+  }, [hydrated, isAuthenticated, user, canAccess, router, redirect]);
 
+  if (!hydrated) return loadingFallback;
   if (!isAuthenticated || !user) return loadingFallback;
   if (!canAccess) return null; // redirect in effect
 

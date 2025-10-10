@@ -1,267 +1,265 @@
 'use client';
 
-import React, { useState } from 'react';
-import { TrendingUp, DollarSign, Award, BookOpen, Calendar } from 'lucide-react';
+import React from 'react';
+import { TrendingUp, DollarSign, BookOpen, Calendar, Users as UsersIcon, ShieldCheck, Star, CalendarClock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { CustomLineChart } from '@/components/charts/LineChart';
 import Protected from '@/components/auth/Protected';
 import { CustomBarChart } from '@/components/charts/BarChart';
 import { CustomPieChart } from '@/components/charts/PieChart';
-import Badge from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
+import EmptyState from '@/components/ui/EmptyState';
+import { analyticsAPI } from '@/API/analytics';
+import type { AnalyticsOverviewDto } from '@/types';
 
 export default function ManagePage() {
-  const [dateRange, setDateRange] = useState('6months');
+  const [data, setData] = React.useState<AnalyticsOverviewDto | null>(null);
+  const [loading, setLoading] = React.useState<boolean>(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  // Mock data for enrollment growth
-  const enrollmentData = [
-    { month: 'Apr', students: 420, tutors: 28 },
-    { month: 'May', students: 580, tutors: 35 },
-    { month: 'Jun', students: 750, tutors: 42 },
-    { month: 'Jul', students: 920, tutors: 48 },
-    { month: 'Aug', students: 1150, tutors: 55 },
-    { month: 'Sep', students: 1380, tutors: 62 },
-  ];
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await analyticsAPI.getAdminAnalyticsOverview();
+        if (!cancelled) setData(res);
+      } catch {
+        if (!cancelled) setError('Failed to load analytics');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-  // Mock data for revenue
-  const revenueData = [
-    { month: 'Apr', revenue: 12500, expenses: 8200 },
-    { month: 'May', revenue: 15800, expenses: 9100 },
-    { month: 'Jun', revenue: 18900, expenses: 10500 },
-    { month: 'Jul', revenue: 22400, expenses: 11200 },
-    { month: 'Aug', revenue: 26700, expenses: 12800 },
-    { month: 'Sep', revenue: 31200, expenses: 13500 },
-  ];
-
-  // Mock data for tutor vs students ratio
-  const ratioData = [
-    { name: 'Tutors', value: 342 },
-    { name: 'Students', value: 2847 },
-  ];
-
-  // Mock data for top modules
-  const topModulesData = [
-    { name: 'Computer Science', enrollments: 458, revenue: 22900 },
-    { name: 'Mathematics', enrollments: 392, revenue: 19600 },
-    { name: 'Physics', enrollments: 325, revenue: 16250 },
-    { name: 'English', enrollments: 298, revenue: 14900 },
-    { name: 'Chemistry', enrollments: 267, revenue: 13350 },
-  ];
+  const StatCard: React.FC<{ title: string; value: React.ReactNode; icon: React.ElementType; accent?: string }>=({ title, value, icon: Icon, accent = 'bg-yellow-50 text-yellow-700' }) => (
+    <Card hoverable>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-gray-600 text-sm mb-1 font-semibold">{title}</p>
+            <h3 className="text-3xl font-bold text-black">{value}</h3>
+          </div>
+          <div className={`p-3 rounded-xl ${accent}`}>
+            <Icon size={24} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <Protected>
-    <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <DashboardLayout>
+        <div className="space-y-6">
+          {/* Header */}
           <div>
-            <h1 className="text-3xl font-display font-bold text-text">Analytics & Insights</h1>
-            <p className="text-text-light">Track performance metrics and trends</p>
+            <h1 className="text-3xl font-display font-bold text-text">Manage Analytics</h1>
+            <p className="text-text-light">Insights powered by admin analytics overview</p>
           </div>
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="input-base w-full md:w-48"
-          >
-            <option value="1month">Last Month</option>
-            <option value="3months">Last 3 Months</option>
-            <option value="6months">Last 6 Months</option>
-            <option value="1year">Last Year</option>
-          </select>
-        </div>
 
-        {/* Insight Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="bg-gradient-to-br from-primary to-primary-600 text-secondary">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-secondary/80 text-sm mb-1">Highest Earning Tutor</p>
-                  <h3 className="text-2xl font-bold mb-1">Sarah Johnson</h3>
-                  <p className="text-3xl font-bold">$28,450</p>
-                  <Badge className="mt-2 bg-secondary text-primary">Top Performer</Badge>
-                </div>
-                <div className="p-3 bg-secondary/20 rounded-2xl backdrop-blur">
-                  <Award size={32} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-secondary to-secondary-700 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-white/80 text-sm mb-1">Most Enrolled Module</p>
-                  <h3 className="text-2xl font-bold mb-1">Computer Science</h3>
-                  <p className="text-3xl font-bold">458 Students</p>
-                  <Badge className="mt-2 bg-primary text-secondary">Trending</Badge>
-                </div>
-                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur">
-                  <BookOpen size={32} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Monthly Enrollment Growth */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Monthly Enrollment Growth</CardTitle>
-              <div className="flex items-center gap-2 text-green-600">
-                <TrendingUp size={20} />
-                <span className="text-sm font-medium">+32.5% increase</span>
-              </div>
+          {loading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-6 space-y-3">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-8 w-1/2" />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </CardHeader>
-          <CardContent>
-            <CustomLineChart
-              data={enrollmentData}
-              xAxisKey="month"
-              dataKeys={[
-                { key: 'students', color: '#FFD700', name: 'Students' },
-                { key: 'tutors', color: '#171717', name: 'Tutors' },
-              ]}
-            />
-          </CardContent>
-        </Card>
+          )}
 
-        {/* Revenue Over Time */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Revenue & Expenses</CardTitle>
-              <div className="flex items-center gap-2 text-green-600">
-                <DollarSign size={20} />
-                <span className="text-sm font-medium">Net: $17,700</span>
+          {!loading && error && (
+            <EmptyState title="Couldn’t load analytics" description="Please try again later." />
+          )}
+
+          {!loading && data && (
+            <>
+              {/* KPIs */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard title="Total Users" value={data.users.total.toLocaleString()} icon={UsersIcon} />
+                <StatCard title="Admins" value={data.admins.toLocaleString()} icon={ShieldCheck} />
+                <StatCard title="Tutors" value={data.tutors.toLocaleString()} icon={UsersIcon} />
+                <StatCard title="Students" value={data.students.toLocaleString()} icon={UsersIcon} />
+                <StatCard title="Active Students" value={data.activeStudents.toLocaleString()} icon={UsersIcon} />
+                <StatCard title="Inactive Students" value={data.inactiveStudents.toLocaleString()} icon={UsersIcon} />
+                <StatCard title="Active Modules" value={data.activeModules.toLocaleString()} icon={BookOpen} />
+                <StatCard title="Enrollments" value={data.enrollments.toLocaleString()} icon={BookOpen} />
+                <StatCard title="Users with 2FA" value={data.usersWith2FA.toLocaleString()} icon={ShieldCheck} />
+                <StatCard title="Avg Rating" value={data.averageRating.toFixed(2)} icon={Star} />
+                <StatCard title="Upcoming Schedules" value={data.upcomingSchedules.toLocaleString()} icon={CalendarClock} />
+                <StatCard title="Revenue (30d)" value={`$${data.revenueLast30Days.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} icon={DollarSign} />
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <CustomBarChart
-              data={revenueData}
-              xAxisKey="month"
-              dataKeys={[
-                { key: 'revenue', color: '#10B981', name: 'Revenue' },
-                { key: 'expenses', color: '#EF4444', name: 'Expenses' },
-              ]}
-            />
-          </CardContent>
-        </Card>
 
-        {/* Two Column Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Tutor vs Students Ratio */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tutor-Student Ratio</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CustomPieChart data={ratioData} />
-              <div className="mt-4 p-4 bg-background rounded-xl">
-                <p className="text-sm text-text-light">
-                  Current ratio: <span className="font-semibold text-text">1:8.3</span>
-                </p>
-                <p className="text-xs text-text-lighter mt-1">
-                  Healthy ratio for quality education delivery
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Top 5 Modules */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Top 5 Popular Modules</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {topModulesData.map((module, index) => (
-                  <div key={index} className="flex items-center gap-4">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-primary text-secondary font-bold">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="font-medium text-text">{module.name}</p>
-                        <span className="text-sm text-text-light">{module.enrollments} students</span>
+              {/* Revenue trend and Tutor statuses */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>Revenue Last 6 Months</CardTitle>
+                      <div className="flex items-center gap-2 text-green-600">
+                        <TrendingUp size={20} />
+                        <span className="text-sm font-medium">Total: ${data.totalRevenue.toLocaleString()}</span>
                       </div>
-                      <div className="w-full bg-background rounded-full h-2">
-                        <div
-                          className="bg-primary h-2 rounded-full transition-all"
-                          style={{ width: `${(module.enrollments / 458) * 100}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-text-lighter mt-1">
-                        Revenue: ${module.revenue.toLocaleString()}
-                      </p>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CustomLineChart
+                      data={data.revenueLast6Months.map(p => ({ month: p.month, revenue: p.amount }))}
+                      xAxisKey="month"
+                      dataKeys={[{ key: 'revenue', color: '#F59E0B', name: 'Revenue' }]}
+                    />
+                  </CardContent>
+                </Card>
 
-        {/* Quick Stats Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-50 rounded-xl">
-                  <Calendar size={24} className="text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-text-light">Avg. Session Time</p>
-                  <p className="text-lg font-bold text-text">45 min</p>
-                </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Tutor Statuses</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CustomPieChart
+                      data={[
+                        { name: 'Approved', value: data.tutorStatuses.approved },
+                        { name: 'Pending', value: data.tutorStatuses.pending },
+                        { name: 'Banned', value: data.tutorStatuses.banned },
+                      ]}
+                      colors={["#10B981", "#F59E0B", "#EF4444"]}
+                    />
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-50 rounded-xl">
-                  <TrendingUp size={24} className="text-green-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-text-light">Growth Rate</p>
-                  <p className="text-lg font-bold text-text">+32.5%</p>
-                </div>
+
+              {/* Users & Modules snapshots */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>User Signups</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CustomBarChart
+                      data={[
+                        { label: 'Total', count: data.users.total },
+                        { label: 'Last 30d', count: data.users.last30Days },
+                        { label: 'Last 7d', count: data.users.last7Days },
+                      ]}
+                      xAxisKey="label"
+                      dataKeys={[{ key: 'count', color: '#F59E0B', name: 'Users' }]}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Modules Added</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CustomBarChart
+                      data={[
+                        { label: 'Total', count: data.modules.total },
+                        { label: 'Last 30d', count: data.modules.last30Days },
+                        { label: 'Last 7d', count: data.modules.last7Days },
+                      ]}
+                      xAxisKey="label"
+                      dataKeys={[{ key: 'count', color: '#3B82F6', name: 'Modules' }]}
+                    />
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-50 rounded-xl">
-                  <Award size={24} className="text-purple-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-text-light">Completion Rate</p>
-                  <p className="text-lg font-bold text-text">87%</p>
-                </div>
+
+              {/* Tutor vs Student ratio */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tutor-Student Ratio</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CustomPieChart data={[
+                    { name: 'Tutors', value: data.tutors },
+                    { name: 'Students', value: data.students },
+                  ]} />
+                </CardContent>
+              </Card>
+
+              {/* Top modules by revenue */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Modules by Revenue</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(!data.topModulesByRevenue || data.topModulesByRevenue.length === 0) ? (
+                    <EmptyState title="No data" description="No revenue data available for modules." />
+                  ) : (
+                    <CustomBarChart
+                      data={data.topModulesByRevenue.map(m => ({ name: m.name, revenue: m.value }))}
+                      xAxisKey="name"
+                      dataKeys={[{ key: 'revenue', color: '#8B5CF6', name: 'Revenue' }]}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Quick Stats Summary */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-50 rounded-xl">
+                        <Calendar size={24} className="text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-light">Upcoming Schedules</p>
+                        <p className="text-lg font-bold text-text">{data.upcomingSchedules.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-50 rounded-xl">
+                        <TrendingUp size={24} className="text-green-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-light">Revenue (30d)</p>
+                        <p className="text-lg font-bold text-text">${data.revenueLast30Days.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-purple-50 rounded-xl">
+                        <Star size={24} className="text-purple-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-light">Average Rating</p>
+                        <p className="text-lg font-bold text-text">{data.averageRating.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-yellow-50 rounded-xl">
+                        <DollarSign size={24} className="text-yellow-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-light">Total Revenue</p>
+                        <p className="text-lg font-bold text-text">${data.totalRevenue.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-50 rounded-xl">
-                  <DollarSign size={24} className="text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-text-light">Avg. Revenue/Tutor</p>
-                  <p className="text-lg font-bold text-text">$4,180</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </>
+          )}
         </div>
-      </div>
-    </DashboardLayout>
+      </DashboardLayout>
     </Protected>
   );
 }

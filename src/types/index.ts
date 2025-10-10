@@ -126,6 +126,28 @@ export interface Announcement {
   author: string;
 }
 
+// Backend-driven Announcement DTOs (Spring controller)
+export interface AnnouncementCreateDto {
+  title: string; // max 200
+  content: string; // max 5000
+  isActive?: boolean; // defaults to true on server if omitted
+}
+
+export interface AnnouncementUpdateDto {
+  title?: string; // max 200
+  content?: string; // max 5000
+  isActive?: boolean;
+}
+
+export interface AnnouncementGetDto {
+  id: string; // UUID
+  title: string;
+  content: string;
+  author: string;
+  createdAt: string; // LocalDateTime -> ISO string
+  active: boolean;
+}
+
 export interface EnrollmentData {
   month: string;
   students: number;
@@ -160,6 +182,46 @@ export interface AnalyticsData {
     name: string;
     enrollments: number;
   };
+}
+
+// Admin Analytics Overview DTO (aligned with Spring Controller /api/admin/analytics/overview)
+export interface AnalyticsOverviewDto {
+  users: {
+    total: number;
+    last30Days: number;
+    last7Days: number;
+  };
+  admins: number;
+  tutors: number;
+  students: number;
+  usersWith2FA: number;
+
+  activeStudents: number;
+  inactiveStudents: number;
+
+  tutorStatuses: {
+    approved: number;
+    pending: number;
+    banned: number;
+  };
+
+  modules: {
+    total: number;
+    last30Days: number;
+    last7Days: number;
+  };
+  activeModules: number;
+
+  enrollments: number;
+
+  totalRevenue: number;
+  revenueLast30Days: number;
+  revenueLast6Months: { month: string; amount: number }[];
+
+  averageRating: number;
+  upcomingSchedules: number;
+
+  topModulesByRevenue: { id: string; name: string; value: number }[];
 }
 
 // Settings Types
@@ -319,4 +381,26 @@ export interface AdminProfileEntity {
   imageUrl?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+// Announcements (Admin) — aligned with Spring DTOs
+export interface AnnouncementGetDto {
+  id: string; // UUID
+  title: string;
+  content: string;
+  author: string;
+  createdAt: string; // LocalDateTime ISO string
+  isActive: boolean;
+}
+
+export interface AnnouncementCreateDto {
+  title: string;
+  content: string;
+  isActive?: boolean;
+}
+
+export interface AnnouncementUpdateDto {
+  title?: string;
+  content?: string;
+  isActive?: boolean;
 }

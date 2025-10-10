@@ -1,5 +1,6 @@
 import { apiClient } from '../lib/axios';
 import { TutorEntity, ModuelsDto } from '../types';
+import type { ApiResponse } from '../types';
 
 // Simple in-memory cache to avoid refetching entire tutor list repeatedly when we only need one tutor.
 // This persists for the lifetime of the JS context (page/tab) only.
@@ -149,6 +150,37 @@ export const getTutorCount = async (): Promise<{
 };
 
 /**
+ * Get total tutor count
+ * GET /tutor-profile/countall
+ * Backend may return { totalCount }, a plain number, or ApiResponse-wrapped
+ */
+export const fetchTutorTotalCount = async (): Promise<number> => {
+  try {
+    const res = await apiClient.get<unknown>('/tutor-profile/countall');
+    const data = res.data as unknown;
+    const parseCount = (val: unknown): number | undefined => {
+      if (typeof val === 'number') return val;
+      if (typeof val === 'object' && val !== null && 'totalCount' in val) {
+        const c = (val as { totalCount?: unknown }).totalCount;
+        if (typeof c === 'number') return c;
+      }
+      return undefined;
+    };
+    const direct = parseCount(data);
+    if (typeof direct === 'number') return direct;
+    if (typeof data === 'object' && data !== null && 'data' in data) {
+      const wrapped = (data as ApiResponse<unknown> | { data?: unknown }).data;
+      const inner = parseCount(wrapped);
+      if (typeof inner === 'number') return inner;
+    }
+    throw new Error('Unexpected tutor total count response shape');
+  } catch (error) {
+    console.error('Error fetching total tutor count:', error);
+    throw error;
+  }
+};
+
+/**
  * Helper function to get tutor's full name
  */
 export const getTutorFullName = (tutor: TutorEntity): string => {
@@ -185,6 +217,43 @@ export const getTutorStatusColor = (status: TutorEntity['status']): string => {
     default:
       return 'bg-gray-100 text-gray-800';
   }
+};
+
+/**
+ * Get last-month tutor growth percentage
+ * Primary path: /growthtutor/last-month per backend controller sample
+ * Fallbacks included for flexibility
+ */
+export const fetchTutorGrowthPercentLastMonth = async (): Promise<number> => {
+  const tryExtract = (data: unknown): number | undefined => {
+    if (data && typeof data === 'object' && 'growthPercent' in data) {
+      const raw = (data as { growthPercent?: unknown }).growthPercent;
+      if (typeof raw === 'number') return raw;
+      if (typeof raw === 'string') {
+        const parsed = parseFloat(raw);
+        if (!Number.isNaN(parsed)) return parsed;
+      }
+    }
+    if (data && typeof data === 'object' && 'data' in data) {
+      const wrapped = (data as ApiResponse<unknown> | { data?: unknown }).data as unknown;
+      return tryExtract(wrapped);
+    }
+    return undefined;
+  };
+
+  const paths = ['/tutor-profile/growthtutor/last-month', '/tutor-profile/growth/last-month'];
+  let lastErr: unknown = null;
+  for (const p of paths) {
+    try {
+      const res = await apiClient.get<unknown>(p);
+      const percent = tryExtract(res.data);
+      if (typeof percent === 'number') return percent;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  if (lastErr) throw lastErr;
+  throw new Error('Unexpected tutor growth response shape');
 };
 
 /**

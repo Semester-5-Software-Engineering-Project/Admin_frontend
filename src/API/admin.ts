@@ -24,6 +24,16 @@ export const adminAPI = {
     return response.data;
   },
   /**
+   * Fetch all admin profiles (GET /admin-profile/all or /admin/all depending on backend mapping)
+   * Based on provided backend snippet: @GetMapping("/all") in Admin controller.
+   * We assume the controller sits under /api/admin-profile or /api/admin; here we use /admin-profile/all.
+   */
+  getAllProfiles: async (): Promise<AdminProfileEntity[]> => {
+    // Prefer /admin-profile/all; adjust if backend uses different base path
+    const response = await apiClient.get<AdminProfileEntity[]>('/admin-profile/all');
+    return response.data;
+  },
+  /**
    * Create or update the authenticated admin's profile.
    * Backend snippet indicates POST mapping that enforces adminId from auth token.
    * Assumed endpoint: POST /admin/profile
