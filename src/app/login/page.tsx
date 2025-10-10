@@ -17,6 +17,12 @@ const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   rememberMe: z.boolean().optional(),
+  totpCode: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^\d{6}$/.test(val), {
+      message: 'Two-factor code must be 6 digits',
+    }),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -25,6 +31,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [showTotp, setShowTotp] = useState(false);
 
   const {
     register,
@@ -35,24 +42,33 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    // Enforce two-step UX: first step collects credentials, second verifies OTP + logs in
+    if (!showTotp) {
+      // Step 1 complete -> reveal OTP input and wait for second submit
+      setShowTotp(true);
+      toast('Enter your 6-digit authentication code');
+      return;
+    }
+
+    // Step 2: must have OTP now
+    if (showTotp && (!data.totpCode || !/^\d{6}$/.test(data.totpCode))) {
+      toast.error('Please enter a valid 6-digit code');
+      return;
+    }
+
     setIsLoading(true);
     try {
-  const { email, password, rememberMe } = data;
-  // Exclude rememberMe from backend payload to avoid Kotlin Map<String,String> parsing issue
-  const auth = await authAPI.login({ email, password });
+      const { email, password, rememberMe, totpCode } = data;
+      const auth = await authAPI.login({ email, password, totpCode });
       setAuth(auth.user, auth.token);
 
-      // If rememberMe is false, store token only in memory (localStorage already used by store).
-      // Optionally implement sessionStorage fallback here if needed.
       if (!rememberMe) {
-        // We could remove persisted storage so it clears on tab close.
-        // Keeping current behavior for now; add logic if requirement changes.
+        // Optionally move to session storage in the future.
       }
 
       toast.success('Login successful!');
       router.push('/dashboard');
     } catch (err: unknown) {
-      // Granular error messaging
       let message = 'Login failed. Please check your credentials.';
       if (typeof err === 'object' && err && 'response' in err) {
         type AxiosLikeError = { response?: { status?: number; data?: unknown } };
@@ -60,12 +76,26 @@ export default function LoginPage() {
         const status = axiosErr.response?.status;
         let serverMsg: string | undefined;
         const data = axiosErr.response?.data;
+        let serverErrorCode: string | undefined;
         if (typeof data === 'string') serverMsg = data;
-        else if (data && typeof data === 'object' && 'message' in data && typeof (data as { message: unknown }).message === 'string') {
-          serverMsg = (data as { message: string }).message;
+        else if (data && typeof data === 'object') {
+          if ('message' in data && typeof (data as { message: unknown }).message === 'string') {
+            serverMsg = (data as { message: string }).message;
+          }
+          if ('error' in data && typeof (data as { error?: unknown }).error === 'string') {
+            serverErrorCode = (data as { error: string }).error;
+          }
         }
-        if (status === 401) message = 'Invalid email or password.';
-        else if (serverMsg) message = serverMsg;
+        if (status === 401) {
+          if (serverErrorCode === 'TOTP_INVALID') {
+            message = 'Invalid two-factor code. Please try again.';
+          } else if (serverErrorCode === 'TOTP_REQUIRED') {
+            // Should not happen now since we always collect OTP before calling login
+            message = 'Two-factor code required. Please enter the 6-digit code.';
+          } else {
+            message = 'Invalid email or password.';
+          }
+        } else if (serverMsg) message = serverMsg;
       } else if (err instanceof Error) {
         if (err.message === 'Malformed login response') {
           message = 'Unexpected server response. Please try again later.';
@@ -149,6 +179,17 @@ export default function LoginPage() {
               {...register('password')}
             />
 
+            {(showTotp) && (
+              <Input
+                label="Two-factor code"
+                type="text"
+                placeholder="6-digit code"
+                leftIcon={<Lock size={20} />}
+                error={errors.totpCode?.message}
+                {...register('totpCode')}
+              />
+            )}
+
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input
@@ -175,7 +216,7 @@ export default function LoginPage() {
               isLoading={isLoading}
               rightIcon={<LogIn size={20} />}
             >
-              Sign In
+              {showTotp ? 'Verify & Sign In' : 'Continue'}
             </Button>
           </form>
 

@@ -39,16 +39,19 @@ export const authAPI = {
   // Login
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     // We cannot rely on ApiResponse<AuthResponse> shape yet; accept loose any and map.
+    const { email, password, totpCode } = credentials;
+    const reqPayload: Record<string, string> = { email, password };
+    if (totpCode && totpCode.trim() !== '') reqPayload.totpCode = totpCode.trim();
     const response = await apiClient.post<BackendLoginResponseRaw | ApiResponse<BackendLoginResponseRaw>>(
       '/auth/login',
-      credentials
+      reqPayload
     );
 
     // Some backends wrap in ApiResponse, others return raw map. Support both.
-    const payload = response.data as BackendLoginResponseRaw | ApiResponse<BackendLoginResponseRaw>;
-    const raw: BackendLoginResponseRaw = (payload && (payload as ApiResponse<BackendLoginResponseRaw>).data
-      ? (payload as ApiResponse<BackendLoginResponseRaw>).data
-      : (payload as BackendLoginResponseRaw));
+    const respData = response.data as BackendLoginResponseRaw | ApiResponse<BackendLoginResponseRaw>;
+    const raw: BackendLoginResponseRaw = (respData && (respData as ApiResponse<BackendLoginResponseRaw>).data
+      ? (respData as ApiResponse<BackendLoginResponseRaw>).data
+      : (respData as BackendLoginResponseRaw));
 
     if (!raw?.token || !raw?.user) {
       throw new Error('Malformed login response');

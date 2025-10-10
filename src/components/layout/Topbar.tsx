@@ -34,14 +34,14 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
             <Menu size={24} className="group-hover:scale-110 transition-transform" />
           </button>
 
-          <div className="hidden md:flex items-center gap-2 bg-gray-50 border-2 border-gray-200 px-4 py-2.5 rounded-xl flex-1 max-w-md hover:border-yellow-400 focus-within:border-yellow-400 focus-within:ring-4 focus-within:ring-yellow-100 transition-all duration-200">
+          {/* <div className="hidden md:flex items-center gap-2 bg-gray-50 border-2 border-gray-200 px-4 py-2.5 rounded-xl flex-1 max-w-md hover:border-yellow-400 focus-within:border-yellow-400 focus-within:ring-4 focus-within:ring-yellow-100 transition-all duration-200">
             <Search size={20} className="text-gray-500" />
             <input
               type="text"
               placeholder="Search..."
               className="bg-transparent outline-none flex-1 text-black placeholder:text-gray-400 font-medium"
             />
-          </div>
+          </div> */}
         </div>
 
         {/* Right: Notifications + Profile */}

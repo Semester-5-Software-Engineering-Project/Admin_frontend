@@ -39,10 +39,19 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid - redirect to login
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('admin_user');
-      window.location.href = '/login';
+      const url: string = error.config?.url || '';
+      // Allow the login endpoint to surface 401s (e.g., TOTP_REQUIRED/TOTP_INVALID)
+      if (url.includes('/auth/login')) {
+        return Promise.reject(error);
+      }
+      // Token expired or invalid - redirect to login for other endpoints
+      try {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('admin_user');
+      } catch {}
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

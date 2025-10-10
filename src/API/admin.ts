@@ -65,6 +65,20 @@ export const adminAPI = {
   getProfile: async (): Promise<AdminProfileEntity> => {
     const response = await apiClient.get<AdminProfileEntity>('/admin-profile/me');
     return response.data;
+  },
+
+  /**
+   * Upload a profile image file to the backend which returns a public URL string.
+   * Endpoint (Spring): POST /upload/image with MultipartFile param name "file".
+   * Returns: string URL
+   */
+  uploadProfileImage: async (file: File): Promise<string> => {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await apiClient.post<string>('/materials/upload/image', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
   }
 };
 

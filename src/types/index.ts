@@ -15,6 +15,7 @@ export interface LoginCredentials {
   email: string;
   password: string;
   rememberMe?: boolean;
+  totpCode?: string; // optional 6-digit two-factor code
 }
 
 export interface AuthResponse {
