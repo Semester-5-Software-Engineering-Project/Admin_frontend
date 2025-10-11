@@ -4,6 +4,13 @@ import { CreateAdminPayload, AdminProfileDto, AdminProfileEntity } from '@/types
 /** Admin management API */
 export const adminAPI = {
   /**
+   * Fetch the admin image URL (GET /image-url)
+   */
+  getAdminImageUrl: async (): Promise<string> => {
+    const response = await apiClient.get<string>('/admin-profile/image-url');
+    return response.data;
+  },
+  /**
    * Creates an admin (or super admin) user using the backend endpoint:
    * POST /api/admin/register
    * Backend returns a plain text success/error message (not a wrapped JSON object)

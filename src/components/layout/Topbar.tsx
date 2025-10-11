@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Bell, Menu } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import { useAuthStore } from '@/context/authStore';
+import { adminAPI } from '@/API/admin';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface TopbarProps {
@@ -14,6 +15,13 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   const { user } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [adminImageUrl, setAdminImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    adminAPI.getAdminImageUrl()
+      .then(setAdminImageUrl)
+      .catch(() => setAdminImageUrl(null));
+  }, []);
 
   // Mock notifications
   const notifications = [
@@ -93,11 +101,19 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-3 p-2 rounded-2xl hover:bg-gray-100 transition-colors"
             >
-              <Avatar
-                src={user?.profilePicture}
-                name={user?.name || 'Admin'}
-                size="md"
-              />
+              {adminImageUrl ? (
+                <img
+                  src={adminImageUrl}
+                  alt="Admin"
+                  className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                />
+              ) : (
+                <Avatar
+                  src={user?.profilePicture}
+                  name={user?.name || 'Admin'}
+                  size="md"
+                />
+              )}
               <div className="hidden md:block text-left">
                 <p className="text-sm font-semibold text-text">{user?.name || 'Admin'}</p>
                 <p className="text-xs text-text-light">{user?.role || 'Administrator'}</p>

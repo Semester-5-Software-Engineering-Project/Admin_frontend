@@ -15,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/context/authStore';
 import Avatar from '@/components/ui/Avatar';
+import { useEffect, useState } from 'react';
+import { adminAPI } from '@/API/admin';
 import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -26,6 +28,12 @@ import { fetchTutorTotalCount, fetchTutorGrowthPercentLastMonth } from '@/API/tu
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const [adminImageUrl, setAdminImageUrl] = useState<string | null>(null);
+  useEffect(() => {
+    adminAPI.getAdminImageUrl()
+      .then(setAdminImageUrl)
+      .catch(() => setAdminImageUrl(null));
+  }, []);
   const [studentCount, setStudentCount] = React.useState<number | null>(null);
   const [studentCountError, setStudentCountError] = React.useState<string | null>(null);
   const [moduleCount, setModuleCount] = React.useState<number | null>(null);
@@ -213,12 +221,20 @@ export default function DashboardPage() {
                     Here&apos;s what&apos;s happening with your platform today.
                   </p>
                 </div>
-                <Avatar
-                  src={user?.profilePicture}
-                  name={user?.name}
-                  size="xxl"
-                  className="hidden md:block ring-4 ring-white shadow-xxl"
-                />
+                {adminImageUrl ? (
+                  <img
+                    src={adminImageUrl}
+                    alt="Admin"
+                    className="hidden md:block w-24 h-24 rounded-full ring-4 ring-white shadow-xxl object-cover"
+                  />
+                ) : (
+                  <Avatar
+                    src={user?.profilePicture}
+                    name={user?.name}
+                    size="xxl"
+                    className="hidden md:block ring-4 ring-white shadow-xxl"
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
