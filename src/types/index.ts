@@ -243,6 +243,52 @@ export interface AnalyticsOverviewDto {
   topModulesByRevenue: { id: string; name: string; value: number }[];
 }
 
+// Backend Analytics DTOs for new endpoints
+export interface UsersSummaryDto {
+  totalUsers: number;
+  admins: number;
+  tutors: number;
+  students: number;
+  usersWith2FA: number;
+}
+
+export interface StudentsSummaryDto {
+  activeStudents: number;
+  inactiveStudents: number;
+}
+
+export interface TutorsSummaryDto {
+  approved: number;
+  pending: number;
+  banned: number;
+}
+
+export interface ModulesSummaryDto {
+  total: number;
+  active: number;
+  last30Days: number;
+  last7Days: number;
+}
+
+export interface RevenueSummaryDto {
+  totalRevenue: number;
+  revenueLast30Days: number;
+  last6Months: { month: string; amount: number }[];
+}
+
+export interface RatingsSummaryDto {
+  averageRating: number;
+}
+
+export interface SchedulesSummaryDto {
+  upcomingSchedules: number;
+  enrollments: number;
+}
+
+export interface TopModulesDto {
+  items: { id: string; name: string; value: number }[];
+}
+
 // Settings Types
 export interface ProfileSettings {
   name: string;
