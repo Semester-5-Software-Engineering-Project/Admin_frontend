@@ -77,11 +77,6 @@ export const paymentsAPI = {
     return response.data;
   },
 
-  // Process payment
-  processPayment: async (id: string) => {
-    const response = await apiClient.post(`/admin/withdrawals/pay/${id}`);
-    return response.data;
-  },
 
   // Get tutor payment history
   getTutorPayments: async (tutorId: string) => {
@@ -95,4 +90,9 @@ export const paymentsAPI = {
   processBulkPayments: async (paymentIds: string[]): Promise<void> => {
     await apiClient.post('/payments/bulk-approve', { paymentIds });
   },
+
+  getTotalRevenue: async (): Promise<number> => {
+    const response = await apiClient.get('/admin/withdrawals/revenue');
+    return response.data.totalRevenue;
+  }
 };
