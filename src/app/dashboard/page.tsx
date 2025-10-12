@@ -21,10 +21,11 @@ import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import announcementsAPI from '@/API/announcements';
-import { formatDate } from '@/utils/helpers';
+import { formatDate, formatCurrency } from '@/utils/helpers';
 import { fetchStudentCount, fetchStudentGrowthPercentLastMonth } from '@/API/student';
 import { fetchModuleCount, fetchModuleGrowthPercentLastMonth } from '@/API/modules';
 import { fetchTutorTotalCount, fetchTutorGrowthPercentLastMonth } from '@/API/tutor';
+import { paymentsAPI } from '@/API/payments';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -49,6 +50,10 @@ export default function DashboardPage() {
   const [announcements, setAnnouncements] = React.useState<import('@/types').AnnouncementGetDto[] | null>(null);
   const [announcementsLoading, setAnnouncementsLoading] = React.useState<boolean>(false);
   const [announcementsError, setAnnouncementsError] = React.useState<string | null>(null);
+  
+  // Revenue state
+  const [totalRevenue, setTotalRevenue] = React.useState<number | null>(null);
+  const [revenueError, setRevenueError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -88,6 +93,14 @@ export default function DashboardPage() {
         if (!cancelled) setStudentGrowthPercent(growth);
       } catch {
         if (!cancelled) setStudentGrowthError('Failed to load');
+      }
+      
+      // Fetch total revenue
+      try {
+        const revenue = await paymentsAPI.getTotalRevenue();
+        if (!cancelled) setTotalRevenue(revenue);
+      } catch {
+        if (!cancelled) setRevenueError('Failed to load');
       }
     })();
     return () => { cancelled = true; };
@@ -368,11 +381,23 @@ export default function DashboardPage() {
             <CardContent className="p-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-300 text-sm mb-1 font-semibold">Total Revenue This Month</p>
-                  <h3 className="text-5xl font-bold mb-3 bg-gradient-to-r from-yellow-400 to-yellow-500 bg-clip-text text-transparent drop-shadow-lg">$142,850</h3>
+                  <p className="text-gray-300 text-sm mb-1 font-semibold">Total Revenue</p>
+                  {revenueError ? (
+                    <h3 className="text-5xl font-bold mb-3 text-red-400">Error</h3>
+                  ) : totalRevenue !== null ? (
+                    <h3 className="text-5xl font-bold mb-3 bg-gradient-to-r from-yellow-400 to-yellow-500 bg-clip-text text-transparent drop-shadow-lg">
+                      {formatCurrency(totalRevenue)}
+                    </h3>
+                  ) : (
+                    <div className="mb-3">
+                      <Skeleton className="h-12 w-48 bg-gray-700" />
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <DollarSign size={20} className="text-yellow-400" />
-                    <span className="text-sm font-bold text-yellow-400">+23.5% from last month</span>
+                    <span className="text-sm font-bold text-yellow-400">
+                      {revenueError ? 'Failed to load' : totalRevenue !== null ? 'Total platform revenue' : 'Loading...'}
+                    </span>
                   </div>
                 </div>
                 <div className="p-5 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-2xl shadow-xl">
