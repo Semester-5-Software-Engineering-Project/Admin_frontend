@@ -1,18 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import RoleGuard from '@/components/auth/RoleGuard';
 import { adminAPI } from '@/API/admin';
-import { CreateAdminPayload, UserRole } from '@/types';
+import { UserRole } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
 import { ShieldPlus, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -22,32 +21,29 @@ const schema = z.object({
   email: z.string().email('Invalid email'),
   password: z.string().min(8, 'Minimum 8 characters'),
   confirmPassword: z.string().min(8),
-  role: z.enum(['admin','super_admin']),
-  profilePicture: z.any().optional(),
+  // Backend expects uppercase roles (based on rest of app types): 'ADMIN' | 'SUPER_ADMIN'
+  role: z.enum(['ADMIN', 'SUPER_ADMIN']),
 }).refine(d => d.password === d.confirmPassword, { message: 'Passwords do not match', path: ['confirmPassword'] });
 
 type FormValues = z.infer<typeof schema>;
 
 export default function CreateAdminPage() {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, watch, reset, setError } = useForm<FormValues>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setError } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { role: 'admin' }
+    defaultValues: { role: 'ADMIN' }
   });
-  const [preview, setPreview] = useState<string | null>(null);
+  // Removed profile picture logic for current backend endpoint which does not accept it
 
   const onSubmit = async (values: FormValues) => {
     try {
-      const payload: CreateAdminPayload = {
+      await adminAPI.create({
         name: values.name,
         email: values.email,
         password: values.password,
         role: values.role as UserRole,
-        profilePicture: values.profilePicture instanceof FileList ? values.profilePicture[0] : undefined,
-      };
-      await adminAPI.create(payload);
+      });
       toast.success('Admin created successfully');
-      reset({ name: '', email: '', password: '', confirmPassword: '', role: 'admin' });
-      setPreview(null);
+      reset({ name: '', email: '', password: '', confirmPassword: '', role: 'ADMIN' });
     } catch (err: unknown) {
       // Attempt to safely parse error shape
       let message = 'Failed to create admin';
@@ -68,18 +64,8 @@ export default function CreateAdminPage() {
     }
   };
 
-  const profileFile = watch('profilePicture');
-  React.useEffect(() => {
-    if (profileFile && profileFile instanceof FileList && profileFile[0]) {
-      const file = profileFile[0];
-      const url = URL.createObjectURL(file);
-      setPreview(url);
-      return () => URL.revokeObjectURL(url);
-    }
-  }, [profileFile]);
-
   return (
-    <RoleGuard allowed={['admin']} redirect="/admin">
+    <RoleGuard allowed={['SUPER_ADMIN']} redirect="/admin">
       <DashboardLayout>
         <div className="max-w-3xl mx-auto space-y-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -123,18 +109,10 @@ export default function CreateAdminPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-gray-700">Role</label>
                     <select className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 font-medium focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" {...register('role')}>
-                      <option value="admin">Admin</option>
-                      <option value="super_admin">Super Admin</option>
+                      <option value="ADMIN">ADMIN</option>
+                      <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                     </select>
                     {errors.role && <p className="text-xs text-red-600 font-semibold mt-1">{errors.role.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">Profile Picture (optional)</label>
-                    <input type="file" accept="image/*" {...register('profilePicture')} className="w-full text-sm" />
-                    {preview && <div className="mt-2 flex items-center gap-3">
-                      <Avatar src={preview} name={"Preview"} size="md" />
-                      <span className="text-xs text-gray-500 font-medium">Preview</span>
-                    </div>}
                   </div>
                 </div>
 

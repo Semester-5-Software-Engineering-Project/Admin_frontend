@@ -31,6 +31,41 @@ export async function fetchAllStudents(): Promise<StudentEntityDto[]> {
 	}
 }
 
+// Fetch total student count
+export async function fetchStudentCount(): Promise<number> {
+	if (DEBUG_STUDENT) console.log('[studentAPI] fetchStudentCount: request -> /student-profile/countall');
+	try {
+		const { data } = await apiClient.get<unknown>('/student-profile/countall');
+		if (DEBUG_STUDENT) console.log('[studentAPI] fetchStudentCount: raw response', data);
+
+		const getCount = (val: unknown): number | undefined => {
+			if (typeof val === 'number') return val;
+			if (typeof val === 'object' && val !== null && 'totalCount' in val) {
+				const maybe = (val as { totalCount?: unknown }).totalCount;
+				if (typeof maybe === 'number') return maybe;
+			}
+			return undefined;
+		};
+
+		// Direct or object with totalCount
+		const direct = getCount(data);
+		if (typeof direct === 'number') return direct;
+
+		// Wrapped ApiResponse
+		if (typeof data === 'object' && data !== null && 'data' in data) {
+			const wrappedData = (data as ApiResponse<unknown> | { data?: unknown }).data;
+			const inner = getCount(wrappedData);
+			if (typeof inner === 'number') return inner;
+		}
+
+		if (DEBUG_STUDENT) console.warn('[studentAPI] fetchStudentCount: unexpected shape', data);
+		throw new Error('Unexpected student count response shape');
+	} catch (err) {
+		if (DEBUG_STUDENT) console.error('[studentAPI] fetchStudentCount: error', err);
+		throw err;
+	}
+}
+
 // Fetch single student by id (assumes backend endpoint). Fallback: filter from all.
 export async function fetchStudentById(studentId: string): Promise<StudentEntityDto | null> {
 	if (DEBUG_STUDENT) console.log('[studentAPI] fetchStudentById: request -> /student-profile/', studentId);
@@ -102,6 +137,44 @@ export async function fetchStudentModules(studentId: string): Promise<StudentMod
 		if (DEBUG_STUDENT) console.error('[studentAPI] fetchStudentModules: error', studentId, err);
 		throw err;
 	}
+}
+
+// Last-month student growth percentage
+// Tries '/student-profile/growth/last-month' first, falls back to '/growth/last-month'
+export async function fetchStudentGrowthPercentLastMonth(): Promise<number> {
+	const tryExtractPercent = (data: unknown): number | undefined => {
+		// Direct map { growthPercent: number }
+		if (data && typeof data === 'object' && 'growthPercent' in data) {
+			const raw = (data as { growthPercent: unknown }).growthPercent;
+			if (typeof raw === 'number') return raw;
+			if (typeof raw === 'string') {
+				const parsed = parseFloat(raw);
+				if (!Number.isNaN(parsed)) return parsed;
+			}
+		}
+		// Wrapped ApiResponse
+		if (data && typeof data === 'object' && 'data' in data) {
+			const wrapped = (data as ApiResponse<unknown> | { data?: unknown }).data as unknown;
+			return tryExtractPercent(wrapped);
+		}
+		return undefined;
+	};
+
+	const paths = ['/student-profile/growthstudent/last-month'];
+	let lastErr: unknown = null;
+	for (const path of paths) {
+		try {
+			const { data } = await apiClient.get<unknown>(path);
+			const percent = tryExtractPercent(data);
+			if (typeof percent === 'number') return percent;
+			// If shape unexpected, continue to next path
+		} catch (err) {
+			lastErr = err;
+		}
+	}
+	// No valid response
+	if (lastErr) throw lastErr;
+	throw new Error('Unexpected growth percent response shape');
 }
 
 // Helper to map backend entity to UI Student type

@@ -1,6 +1,7 @@
-'use client';
+ 'use client';
 
 import React from 'react';
+import Protected from '@/components/auth/Protected';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -14,33 +15,127 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/context/authStore';
 import Avatar from '@/components/ui/Avatar';
+import { useEffect, useState } from 'react';
+import { adminAPI } from '@/API/admin';
 import Badge from '@/components/ui/Badge';
+import EmptyState from '@/components/ui/EmptyState';
+import { Skeleton } from '@/components/ui/Skeleton';
+import announcementsAPI from '@/API/announcements';
+import { formatDate } from '@/utils/helpers';
+import { fetchStudentCount, fetchStudentGrowthPercentLastMonth } from '@/API/student';
+import { fetchModuleCount, fetchModuleGrowthPercentLastMonth } from '@/API/modules';
+import { fetchTutorTotalCount, fetchTutorGrowthPercentLastMonth } from '@/API/tutor';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const [adminImageUrl, setAdminImageUrl] = useState<string | null>(null);
+  useEffect(() => {
+    adminAPI.getAdminImageUrl()
+      .then(setAdminImageUrl)
+      .catch(() => setAdminImageUrl(null));
+  }, []);
+  const [studentCount, setStudentCount] = React.useState<number | null>(null);
+  const [studentCountError, setStudentCountError] = React.useState<string | null>(null);
+  const [moduleCount, setModuleCount] = React.useState<number | null>(null);
+  const [moduleCountError, setModuleCountError] = React.useState<string | null>(null);
+  const [moduleGrowthPercent, setModuleGrowthPercent] = React.useState<number | null>(null);
+  const [moduleGrowthError, setModuleGrowthError] = React.useState<string | null>(null);
+  const [tutorCount, setTutorCount] = React.useState<number | null>(null);
+  const [tutorCountError, setTutorCountError] = React.useState<string | null>(null);
+  const [tutorGrowthPercent, setTutorGrowthPercent] = React.useState<number | null>(null);
+  const [tutorGrowthError, setTutorGrowthError] = React.useState<string | null>(null);
+  const [studentGrowthPercent, setStudentGrowthPercent] = React.useState<number | null>(null);
+  const [studentGrowthError, setStudentGrowthError] = React.useState<string | null>(null);
+  const [announcements, setAnnouncements] = React.useState<import('@/types').AnnouncementGetDto[] | null>(null);
+  const [announcementsLoading, setAnnouncementsLoading] = React.useState<boolean>(false);
+  const [announcementsError, setAnnouncementsError] = React.useState<string | null>(null);
 
-  // Mock stats data
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const count = await fetchStudentCount();
+        if (!cancelled) setStudentCount(count);
+      } catch {
+        if (!cancelled) setStudentCountError('Failed to load');
+      }
+      try {
+        const mCount = await fetchModuleCount();
+        if (!cancelled) setModuleCount(mCount);
+      } catch {
+        if (!cancelled) setModuleCountError('Failed to load');
+      }
+      try {
+        const mGrowth = await fetchModuleGrowthPercentLastMonth();
+        if (!cancelled) setModuleGrowthPercent(mGrowth);
+      } catch {
+        if (!cancelled) setModuleGrowthError('Failed to load');
+      }
+      try {
+        const tCount = await fetchTutorTotalCount();
+        if (!cancelled) setTutorCount(tCount);
+      } catch {
+        if (!cancelled) setTutorCountError('Failed to load');
+      }
+      try {
+        const tGrowth = await fetchTutorGrowthPercentLastMonth();
+        if (!cancelled) setTutorGrowthPercent(tGrowth);
+      } catch {
+        if (!cancelled) setTutorGrowthError('Failed to load');
+      }
+      try {
+        const growth = await fetchStudentGrowthPercentLastMonth();
+        if (!cancelled) setStudentGrowthPercent(growth);
+      } catch {
+        if (!cancelled) setStudentGrowthError('Failed to load');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Load active announcements
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setAnnouncementsLoading(true);
+        const data = await announcementsAPI.list(true);
+        console.log(data);
+        if (!cancelled) {
+          // Rely on backend to return only active announcements
+          setAnnouncements(data);
+        }
+      } catch {
+        if (!cancelled) setAnnouncementsError('Failed to load announcements');
+      } finally {
+        if (!cancelled) setAnnouncementsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Stats data (student count live, others currently mocked)
   const stats = [
     {
       title: 'Total Students',
-      value: '2,847',
-      change: '+12.5%',
+      value: studentCountError ? '—' : (studentCount !== null ? studentCount.toLocaleString() : 'Loading…'),
+      change: studentGrowthError ? '—' : (studentGrowthPercent !== null ? `${studentGrowthPercent.toFixed(1)}%` : 'Loading…'),
       icon: Users,
       color: 'text-blue-500',
       bgColor: 'bg-blue-50',
     },
     {
       title: 'Total Tutors',
-      value: '342',
-      change: '+8.2%',
+      value: tutorCountError ? '—' : (tutorCount !== null ? tutorCount.toLocaleString() : 'Loading…'),
+      change: tutorGrowthError ? '—' : (tutorGrowthPercent !== null ? `${tutorGrowthPercent.toFixed(1)}%` : 'Loading…'),
       icon: GraduationCap,
       color: 'text-green-500',
       bgColor: 'bg-green-50',
     },
     {
       title: 'Total Modules',
-      value: '156',
-      change: '+3.1%',
+      value: moduleCountError ? '—' : (moduleCount !== null ? moduleCount.toLocaleString() : 'Loading…'),
+      change: moduleGrowthError ? '—' : (moduleGrowthPercent !== null ? `${moduleGrowthPercent.toFixed(1)}%` : 'Loading…'),
       icon: BookOpen,
       color: 'text-purple-500',
       bgColor: 'bg-purple-50',
@@ -87,23 +182,7 @@ export default function DashboardPage() {
     },
   ];
 
-  // Mock announcements
-  const announcements = [
-    {
-      id: 1,
-      title: 'System Maintenance',
-      message: 'Scheduled maintenance on Sunday, 2 AM - 4 AM EST',
-      priority: 'high' as const,
-      date: '2025-10-10',
-    },
-    {
-      id: 2,
-      title: 'New Feature Released',
-      message: 'Analytics dashboard now includes revenue forecasting',
-      priority: 'medium' as const,
-      date: '2025-10-05',
-    },
-  ];
+  // Announcements now loaded from API
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -121,6 +200,7 @@ export default function DashboardPage() {
   };
 
   return (
+    <Protected>
     <DashboardLayout>
       <motion.div
         variants={containerVariants}
@@ -141,12 +221,20 @@ export default function DashboardPage() {
                     Here&apos;s what&apos;s happening with your platform today.
                   </p>
                 </div>
-                <Avatar
-                  src={user?.profilePicture}
-                  name={user?.name}
-                  size="xl"
-                  className="hidden md:block ring-4 ring-white shadow-xl"
-                />
+                {adminImageUrl ? (
+                  <img
+                    src={adminImageUrl}
+                    alt="Admin"
+                    className="hidden md:block w-24 h-24 rounded-full ring-4 ring-white shadow-xxl object-cover"
+                  />
+                ) : (
+                  <Avatar
+                    src={user?.profilePicture}
+                    name={user?.name}
+                    size="xxl"
+                    className="hidden md:block ring-4 ring-white shadow-xxl"
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
@@ -168,7 +256,9 @@ export default function DashboardPage() {
                       <h3 className="text-3xl font-bold text-black mb-2 group-hover:text-yellow-600 transition-colors">{stat.value}</h3>
                       <div className="flex items-center gap-1">
                         <TrendingUp size={16} className="text-green-500" />
-                        <span className="text-sm font-bold text-green-600">{stat.change}</span>
+                        <span className="text-sm font-semibold text-gray-700">
+                          {stat.change}
+                        </span>
                       </div>
                     </div>
                     <div className={`p-3 rounded-xl ${stat.bgColor} group-hover:scale-110 transition-transform duration-300 shadow-md`}>
@@ -218,32 +308,56 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {announcements.map((announcement) => (
-                  <div
-                    key={announcement.id}
-                    className="p-4 rounded-xl border-2 border-gray-100 hover:border-yellow-400 transition-all duration-200 hover:shadow-md group cursor-pointer"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-bold text-black group-hover:text-yellow-700 transition-colors">{announcement.title}</h4>
-                      <Badge
-                        variant={
-                          announcement.priority === 'high'
-                            ? 'danger'
-                            : announcement.priority === 'medium'
-                            ? 'warning'
-                            : 'info'
-                        }
-                        size="sm"
-                      >
-                        {announcement.priority}
-                      </Badge>
+              {announcementsLoading && (
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="p-4 rounded-xl border-2 border-gray-100">
+                      <div className="flex items-start justify-between mb-2">
+                        <Skeleton className="h-5 w-1/3" />
+                        <Skeleton className="h-6 w-16 rounded-full" />
+                      </div>
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-2/3" />
                     </div>
-                    <p className="text-sm text-gray-600 font-medium mb-2">{announcement.message}</p>
-                    <span className="text-xs text-gray-500 font-semibold">{announcement.date}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
+
+              {!announcementsLoading && announcementsError && (
+                <EmptyState
+                  title="Couldn’t load announcements"
+                  description="There was a problem fetching the latest announcements."
+                />
+              )}
+
+              {!announcementsLoading && !announcementsError && (
+                <>
+                  {(!announcements || announcements.length === 0) ? (
+                    <EmptyState
+                      title="No active announcements"
+                      description="Announcements marked active will appear here."
+                    />
+                  ) : (
+                    <div className="space-y-3">
+                      {announcements.map((a) => (
+                        <div
+                          key={a.id}
+                          className="p-4 rounded-xl border-2 border-gray-100 hover:border-yellow-400 transition-all duration-200 hover:shadow-md group cursor-pointer"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-bold text-black group-hover:text-yellow-700 transition-colors">{a.title}</h4>
+                            <Badge variant="success" size="sm">Active</Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 font-medium mb-2 break-words overflow-hidden">{a.content}</p>
+                          <span className="text-xs text-gray-500 font-semibold">
+                            {formatDate(a.createdAt, 'short')} • by {a.author}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -270,5 +384,6 @@ export default function DashboardPage() {
         </motion.div>
       </motion.div>
     </DashboardLayout>
+    </Protected>
   );
 }
