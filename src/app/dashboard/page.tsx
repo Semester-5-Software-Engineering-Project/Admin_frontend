@@ -1,6 +1,7 @@
  'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import Protected from '@/components/auth/Protected';
 import reportsAPI from '@/API/reports';
 import type { GetReportDto } from '@/types';
@@ -240,9 +241,11 @@ export default function DashboardPage() {
                   </p>
                 </div>
                 {adminImageUrl ? (
-                  <img
+                  <Image
                     src={adminImageUrl}
                     alt="Admin"
+                    width={96}
+                    height={96}
                     className="hidden md:block w-24 h-24 rounded-full ring-4 ring-white shadow-xxl object-cover"
                   />
                 ) : (
