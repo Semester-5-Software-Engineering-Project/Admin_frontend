@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Bell, Menu } from 'lucide-react';
+import Image from 'next/image';
+import { Bell, Menu } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import { useAuthStore } from '@/context/authStore';
 import { adminAPI } from '@/API/admin';
@@ -102,9 +103,11 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
               className="flex items-center gap-3 p-2 rounded-2xl hover:bg-gray-100 transition-colors"
             >
               {adminImageUrl ? (
-                <img
+                <Image
                   src={adminImageUrl}
                   alt="Admin"
+                  width={40}
+                  height={40}
                   className="w-10 h-10 rounded-full object-cover border border-gray-200"
                 />
               ) : (
