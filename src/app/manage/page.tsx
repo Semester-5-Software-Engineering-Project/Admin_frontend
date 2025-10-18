@@ -90,8 +90,8 @@ export default function ManagePage() {
                 <StatCard title="Active Modules" value={data.activeModules.toLocaleString()} icon={BookOpen} />
                 <StatCard title="Enrollments" value={data.enrollments.toLocaleString()} icon={BookOpen} />
                 <StatCard title="Users with 2FA" value={data.usersWith2FA.toLocaleString()} icon={ShieldCheck} />
-                <StatCard title="Avg Rating" value={data.averageRating.toFixed(2)} icon={Star} />
-                <StatCard title="Upcoming Schedules" value={data.upcomingSchedules.toLocaleString()} icon={CalendarClock} />
+                {/* <StatCard title="Avg Rating" value={data.averageRating.toFixed(2)} icon={Star} /> */}
+                {/* <StatCard title="Upcoming Schedules" value={data.upcomingSchedules.toLocaleString()} icon={CalendarClock} /> */}
                 <StatCard title="Revenue (30d)" value={`$${data.revenueLast30Days.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} icon={DollarSign} />
               </div>
 
@@ -203,7 +203,7 @@ export default function ManagePage() {
 
               {/* Quick Stats Summary */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card>
+                {/* <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-blue-50 rounded-xl">
@@ -215,8 +215,8 @@ export default function ManagePage() {
                       </div>
                     </div>
                   </CardContent>
-                </Card>
-                <Card>
+                </Card> */}
+                {/* <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-green-50 rounded-xl">
@@ -228,8 +228,8 @@ export default function ManagePage() {
                       </div>
                     </div>
                   </CardContent>
-                </Card>
-                <Card>
+                </Card> */}
+                {/* <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-purple-50 rounded-xl">
@@ -241,8 +241,8 @@ export default function ManagePage() {
                       </div>
                     </div>
                   </CardContent>
-                </Card>
-                <Card>
+                </Card> */}
+                {/* <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-yellow-50 rounded-xl">
@@ -254,7 +254,7 @@ export default function ManagePage() {
                       </div>
                     </div>
                   </CardContent>
-                </Card>
+                </Card> */}
               </div>
             </>
           )}
