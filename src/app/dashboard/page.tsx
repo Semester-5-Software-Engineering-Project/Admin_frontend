@@ -11,7 +11,6 @@ import {
   BookOpen, 
   CreditCard,
   TrendingUp,
-  DollarSign,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -28,7 +27,6 @@ import { fetchStudentCount, fetchStudentGrowthPercentLastMonth } from '@/API/stu
 import { fetchModuleCount, fetchModuleGrowthPercentLastMonth } from '@/API/modules';
 import { fetchTutorTotalCount, fetchTutorGrowthPercentLastMonth } from '@/API/tutor';
 import { paymentsAPI } from '@/API/payments';
-import { span } from 'framer-motion/client';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -57,6 +55,10 @@ export default function DashboardPage() {
   // Revenue state
   const [totalRevenue, setTotalRevenue] = React.useState<number | null>(null);
   const [revenueError, setRevenueError] = React.useState<string | null>(null);
+  
+  // Pending payments state
+  const [pendingPayments, setPendingPayments] = React.useState<number | null>(null);
+  const [pendingPaymentsError, setPendingPaymentsError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -104,6 +106,14 @@ export default function DashboardPage() {
         if (!cancelled) setTotalRevenue(revenue);
       } catch {
         if (!cancelled) setRevenueError('Failed to load');
+      }
+      
+      // Fetch pending payments amount
+      try {
+        const pending = await paymentsAPI.getTotalPending();
+        if (!cancelled) setPendingPayments(pending);
+      } catch {
+        if (!cancelled) setPendingPaymentsError('Failed to load');
       }
     })();
     return () => { cancelled = true; };
@@ -158,8 +168,8 @@ export default function DashboardPage() {
     },
     {
       title: 'Pending Payments',
-      value: '$24,500',
-      change: '+18.3%',
+      value: pendingPaymentsError ? '—' : (pendingPayments !== null ? formatCurrency(pendingPayments) : 'Loading…'),
+      change: pendingPaymentsError ? '—' : (pendingPayments !== null ? 'Awaiting approval' : 'Loading…'),
       icon: CreditCard,
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-50',
@@ -243,6 +253,40 @@ export default function DashboardPage() {
                     className="hidden md:block ring-4 ring-white shadow-xxl"
                   />
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Quick Revenue Stats */}
+        <motion.div variants={itemVariants}>
+          <Card className="bg-gradient-to-br from-black via-gray-900 to-gray-800 text-white border-2 border-gray-700 shadow-2xl hover:shadow-yellow-400/20 transition-shadow">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-300 text-sm mb-1 font-semibold">Total Revenue</p>
+                  {revenueError ? (
+                    <h3 className="text-5xl font-bold mb-3 text-red-400">Error</h3>
+                  ) : totalRevenue !== null ? (
+                    <h3 className="text-5xl font-bold mb-3 bg-gradient-to-r from-yellow-400 to-yellow-500 bg-clip-text text-transparent drop-shadow-lg">
+                      {<span className="text-4xl font-bold text-yellow-400">LKR {totalRevenue}</span>}
+                    </h3>
+                  ) : (
+                    <div className="mb-3">
+                      <Skeleton className="h-12 w-48 bg-gray-700" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    {/* <DollarSign size={20} className="text-yellow-400" /> */}
+
+                    <span className="text-sm font-bold text-yellow-400">
+                      {revenueError ? 'Failed to load' : totalRevenue !== null ? 'Total platform revenue' : 'Loading...'}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-5 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-2xl shadow-xl">
+                  <TrendingUp size={48} className="text-black" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -426,39 +470,7 @@ export default function DashboardPage() {
           </Card>
         </motion.div>
 
-        {/* Quick Revenue Stats */}
-        <motion.div variants={itemVariants}>
-          <Card className="bg-gradient-to-br from-black via-gray-900 to-gray-800 text-white border-2 border-gray-700 shadow-2xl hover:shadow-yellow-400/20 transition-shadow">
-            <CardContent className="p-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-300 text-sm mb-1 font-semibold">Total Revenue</p>
-                  {revenueError ? (
-                    <h3 className="text-5xl font-bold mb-3 text-red-400">Error</h3>
-                  ) : totalRevenue !== null ? (
-                    <h3 className="text-5xl font-bold mb-3 bg-gradient-to-r from-yellow-400 to-yellow-500 bg-clip-text text-transparent drop-shadow-lg">
-                      {<span className="text-4xl font-bold text-yellow-400">LKR {totalRevenue}</span>}
-                    </h3>
-                  ) : (
-                    <div className="mb-3">
-                      <Skeleton className="h-12 w-48 bg-gray-700" />
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    {/* <DollarSign size={20} className="text-yellow-400" /> */}
-                    <span className="text-sm font-bold text-yellow-400">LKR</span>
-                    <span className="text-sm font-bold text-yellow-400">
-                      {revenueError ? 'Failed to load' : totalRevenue !== null ? 'Total platform revenue' : 'Loading...'}
-                    </span>
-                  </div>
-                </div>
-                <div className="p-5 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-2xl shadow-xl">
-                  <TrendingUp size={48} className="text-black" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+        
       </motion.div>
     </DashboardLayout>
     </Protected>
