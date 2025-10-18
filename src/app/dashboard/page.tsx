@@ -2,6 +2,8 @@
 
 import React from 'react';
 import Protected from '@/components/auth/Protected';
+import reportsAPI from '@/API/reports';
+import type { GetReportDto } from '@/types';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -26,6 +28,7 @@ import { fetchStudentCount, fetchStudentGrowthPercentLastMonth } from '@/API/stu
 import { fetchModuleCount, fetchModuleGrowthPercentLastMonth } from '@/API/modules';
 import { fetchTutorTotalCount, fetchTutorGrowthPercentLastMonth } from '@/API/tutor';
 import { paymentsAPI } from '@/API/payments';
+import { span } from 'framer-motion/client';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -163,37 +166,29 @@ export default function DashboardPage() {
     },
   ];
 
-  // Mock recent activities
-  const recentActivities = [
-    {
-      id: 1,
-      type: 'tutor_approval',
-      message: 'John Smith approved as tutor',
-      time: '5 minutes ago',
-      user: 'John Smith',
-    },
-    {
-      id: 2,
-      type: 'payment',
-      message: 'Payment of $500 processed for Sarah Johnson',
-      time: '1 hour ago',
-      user: 'Sarah Johnson',
-    },
-    {
-      id: 3,
-      type: 'enrollment',
-      message: 'Alice Brown enrolled in Mathematics 101',
-      time: '2 hours ago',
-      user: 'Alice Brown',
-    },
-    {
-      id: 4,
-      type: 'ban',
-      message: 'User Mike Davis temporarily banned',
-      time: '3 hours ago',
-      user: 'Mike Davis',
-    },
-  ];
+  // Reports state
+  const [reports, setReports] = React.useState<GetReportDto[] | null>(null);
+  const [reportsLoading, setReportsLoading] = React.useState<boolean>(false);
+  const [reportsError, setReportsError] = React.useState<string | null>(null);
+
+  // Import reportsAPI
+  // ...existing code...
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setReportsLoading(true);
+        const data = await reportsAPI.list();
+        if (!cancelled) setReports(data);
+      } catch {
+        if (!cancelled) setReportsError('Failed to load reports');
+      } finally {
+        if (!cancelled) setReportsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Announcements now loaded from API
 
@@ -286,29 +281,85 @@ export default function DashboardPage() {
 
         {/* Recent Activities & Announcements */}
         <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Activities */}
+          {/* Reports Section */}
           <Card className="hover:shadow-xl transition-shadow">
             <CardHeader>
               <CardTitle className="text-black flex items-center gap-2">
                 <div className="w-1 h-6 bg-yellow-400 rounded-full"></div>
-                Recent Activities
+                Recent Reports
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {recentActivities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-start gap-4 p-4 rounded-xl hover:bg-yellow-50 transition-all duration-200 border border-transparent hover:border-yellow-200 group cursor-pointer"
-                  >
-                    <Avatar name={activity.user} size="md" className="group-hover:scale-110 transition-transform" />
-                    <div className="flex-1">
-                      <p className="text-sm text-black font-semibold group-hover:text-yellow-700 transition-colors">{activity.message}</p>
-                      <span className="text-xs text-gray-500 font-medium">{activity.time}</span>
+              {reportsLoading && (
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="p-4 rounded-xl border-2 border-gray-100">
+                      <Skeleton className="h-5 w-1/3" />
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-2/3" />
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
+              {!reportsLoading && reportsError && (
+                <EmptyState
+                  title="Couldn’t load reports"
+                  description="There was a problem fetching the latest reports."
+                />
+              )}
+              {!reportsLoading && !reportsError && (
+                <>
+                  {(!reports || reports.length === 0) ? (
+                    <EmptyState
+                      title="No recent reports"
+                      description="Reports will appear here when available."
+                    />
+                  ) : (
+                    <div className="space-y-3">
+                      {reports.map((report, idx) => (
+                        <div
+                          key={idx}
+                          className="flex flex-col gap-2 p-4 rounded-xl border-2 border-gray-100 hover:border-yellow-200 transition-all duration-200 hover:shadow-md group"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="font-bold text-black group-hover:text-yellow-700 transition-colors">{report.moduleName}</h4>
+                            <Badge variant={report.status === 'Resolved' ? 'success' : 'warning'} size="sm">{report.status}</Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 font-medium mb-1 break-words overflow-hidden">{report.reason}</p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500 font-semibold">{report.reportDate}</span>
+                            <span className="text-xs text-gray-500 font-semibold">by {report.reportedBy}</span>
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              className="px-3 py-1 rounded bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition"
+                              disabled={report.status === 'Reviewed' || report.status === 'Resolved'}
+                              onClick={async () => {
+                                await reportsAPI.reviewReport(report.id);
+                                setReportsLoading(true);
+                                const data = await reportsAPI.list();
+                                setReports(data);
+                                setReportsLoading(false);
+                              }}
+                            >Review</button>
+                            <button
+                              className="px-3 py-1 rounded bg-green-500 text-white text-xs font-semibold hover:bg-green-600 transition"
+                              disabled={report.status === 'Resolved'}
+                              onClick={async () => {
+                                await reportsAPI.resolveReport(report.id);
+                                setReportsLoading(true);
+                                const data = await reportsAPI.list();
+                                setReports(data);
+                                setReportsLoading(false);
+                              }}
+                            >Resolve</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -386,7 +437,7 @@ export default function DashboardPage() {
                     <h3 className="text-5xl font-bold mb-3 text-red-400">Error</h3>
                   ) : totalRevenue !== null ? (
                     <h3 className="text-5xl font-bold mb-3 bg-gradient-to-r from-yellow-400 to-yellow-500 bg-clip-text text-transparent drop-shadow-lg">
-                      {formatCurrency(totalRevenue)}
+                      {<span className="text-4xl font-bold text-yellow-400">LKR {totalRevenue}</span>}
                     </h3>
                   ) : (
                     <div className="mb-3">
@@ -394,7 +445,8 @@ export default function DashboardPage() {
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <DollarSign size={20} className="text-yellow-400" />
+                    {/* <DollarSign size={20} className="text-yellow-400" /> */}
+                    <span className="text-sm font-bold text-yellow-400">LKR</span>
                     <span className="text-sm font-bold text-yellow-400">
                       {revenueError ? 'Failed to load' : totalRevenue !== null ? 'Total platform revenue' : 'Loading...'}
                     </span>

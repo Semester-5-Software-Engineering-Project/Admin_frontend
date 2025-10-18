@@ -1,3 +1,12 @@
+// Report DTOs
+export interface GetReportDto {
+  id: string;
+  moduleName: string;
+  reportedBy: string;
+  reason: string;
+  reportDate: string;
+  status: string;
+}
 // User & Authentication Types
 // Central role union so it can be reused in guards/components
 export type UserRole = 'ADMIN' | 'SUPER_ADMIN';
