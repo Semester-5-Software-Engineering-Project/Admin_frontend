@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { TrendingUp, DollarSign, BookOpen, Calendar, Users as UsersIcon, ShieldCheck, Star, CalendarClock } from 'lucide-react';
+import { TrendingUp, DollarSign, BookOpen, Users as UsersIcon, ShieldCheck } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { CustomLineChart } from '@/components/charts/LineChart';

@@ -35,8 +35,9 @@ export default function CreateAnnouncementPage() {
     try {
       await announcementsAPI.create(form);
       router.push('/admin');
-    } catch (err: any) {
-      const msg = err?.response?.data || err?.message || 'Failed to create announcement';
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: string }; message?: string };
+      const msg = error?.response?.data || error?.message || 'Failed to create announcement';
       setServerError(typeof msg === 'string' ? msg : 'Failed to create announcement');
     } finally {
       setSubmitting(false);
