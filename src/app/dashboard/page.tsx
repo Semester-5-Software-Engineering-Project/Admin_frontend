@@ -22,6 +22,7 @@ import { adminAPI } from '@/API/admin';
 import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
 import announcementsAPI from '@/API/announcements';
 import { formatDate, formatCurrency } from '@/utils/helpers';
 import { fetchStudentCount, fetchStudentGrowthPercentLastMonth } from '@/API/student';
@@ -30,6 +31,8 @@ import { fetchTutorTotalCount, fetchTutorGrowthPercentLastMonth } from '@/API/tu
 import { paymentsAPI } from '@/API/payments';
 
 export default function DashboardPage() {
+  // Modal state for viewing report
+  const [viewReport, setViewReport] = React.useState<GetReportDto | null>(null);
   const { user } = useAuthStore();
   const [adminImageUrl, setAdminImageUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -363,6 +366,39 @@ export default function DashboardPage() {
                     />
                   ) : (
                     <div className="space-y-3">
+                      {/* Modal for viewing report */}
+                      {viewReport && (
+                        <Modal isOpen={!!viewReport} onClose={() => setViewReport(null)}>
+                          <div className="p-6">
+                            <h3 className="text-xl font-bold mb-2">Report Details</h3>
+                            <div className="mb-2"><strong>Module:</strong> {viewReport.moduleName}</div>
+                            <div className="mb-2"><strong>Reported By:</strong> {viewReport.reportedBy}</div>
+                            <div className="mb-2"><strong>Date:</strong> {viewReport.reportDate}</div>
+                            <div className="mb-2"><strong>Status:</strong> {viewReport.status}</div>
+                            <div className="mb-4"><strong>Reason:</strong> {viewReport.reason}</div>
+                            <div className="flex gap-2">
+                              <button
+                                className="px-3 py-1 rounded bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition"
+                                disabled={viewReport.status === 'Reviewed' || viewReport.status === 'Resolved'}
+                                onClick={async () => {
+                                  console.log('Review reportId:', viewReport.reportId);
+                                  await reportsAPI.reviewReport(viewReport.reportId);
+                                  setViewReport(null);
+                                  setReportsLoading(true);
+                                  const data = await reportsAPI.list();
+                                  setReports(data);
+                                  setReportsLoading(false);
+                                }}
+                              >Review</button>
+                              <button
+                                className="px-3 py-1 rounded bg-gray-400 text-white text-xs font-semibold hover:bg-gray-500 transition"
+                                onClick={() => setViewReport(null)}
+                              >Close</button>
+                            </div>
+                          </div>
+                        </Modal>
+                      )}
+                      {/* Render report rows */}
                       {reports.map((report, idx) => (
                         <div
                           key={idx}
@@ -372,7 +408,6 @@ export default function DashboardPage() {
                             <h4 className="font-bold text-black group-hover:text-yellow-700 transition-colors">{report.moduleName}</h4>
                             <Badge variant={report.status === 'Resolved' ? 'success' : 'warning'} size="sm">{report.status}</Badge>
                           </div>
-                          <p className="text-sm text-gray-600 font-medium mb-1 break-words overflow-hidden">{report.reason}</p>
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-gray-500 font-semibold">{report.reportDate}</span>
                             <span className="text-xs text-gray-500 font-semibold">by {report.reportedBy}</span>
@@ -380,20 +415,14 @@ export default function DashboardPage() {
                           <div className="flex gap-2 mt-2">
                             <button
                               className="px-3 py-1 rounded bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition"
-                              disabled={report.status === 'Reviewed' || report.status === 'Resolved'}
-                              onClick={async () => {
-                                await reportsAPI.reviewReport(report.id);
-                                setReportsLoading(true);
-                                const data = await reportsAPI.list();
-                                setReports(data);
-                                setReportsLoading(false);
-                              }}
-                            >Review</button>
+                              onClick={() => setViewReport(report)}
+                            >View</button>
                             <button
                               className="px-3 py-1 rounded bg-green-500 text-white text-xs font-semibold hover:bg-green-600 transition"
                               disabled={report.status === 'Resolved'}
                               onClick={async () => {
-                                await reportsAPI.resolveReport(report.id);
+                                console.log('Resolve reportId:', report.reportId);
+                                await reportsAPI.resolveReport(report.reportId);
                                 setReportsLoading(true);
                                 const data = await reportsAPI.list();
                                 setReports(data);

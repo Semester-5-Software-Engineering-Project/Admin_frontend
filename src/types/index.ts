@@ -1,6 +1,6 @@
 // Report DTOs
 export interface GetReportDto {
-  id: string;
+  reportId: string;
   moduleName: string;
   reportedBy: string;
   reason: string;
