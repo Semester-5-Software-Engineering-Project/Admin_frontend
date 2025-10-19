@@ -3,16 +3,16 @@ import type { GetReportDto } from '@/types';
 
 const reportsAPI = {
   async list(): Promise<GetReportDto[]> {
-    const res = await axios.get('/api/reports');
+    const res = await axios.get('/reports');
     return res.data;
   },
 
   async reviewReport(reportId: string) {
-    await axios.put(`/api/reports/review`, null, { params: { reportId } });
+    await axios.put(`/reports/review`, null, { params: { reportId } });
   },
 
   async resolveReport(reportId: string) {
-    await axios.put(`/api/reports/resolve`, null, { params: { reportId } });
+    await axios.put(`/reports/resolve`, null, { params: { reportId } });
   },
 };
 
