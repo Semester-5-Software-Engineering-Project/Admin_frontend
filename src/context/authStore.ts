@@ -77,18 +77,10 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       // mark store as hydrated after rehydration so UI can wait before redirecting
-      onRehydrateStorage: () => (state, error) => {
-        if (error) {
-          // if hydration fails, still mark hydrated to avoid indefinite loading
-          try {
-            // @ts-expect-error - set is available on store instance at runtime
-            state?.set({ hydrated: true });
-          } catch {}
-        } else {
-          try {
-            // @ts-expect-error - set is available on store instance at runtime
-            state?.set({ hydrated: true });
-          } catch {}
+      onRehydrateStorage: () => (state) => {
+        // Always mark as hydrated regardless of success/error
+        if (state) {
+          state.hydrated = true;
         }
       },
     }
