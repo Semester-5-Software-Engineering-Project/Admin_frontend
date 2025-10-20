@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { TrendingUp, DollarSign, BookOpen, Users as UsersIcon, ShieldCheck } from 'lucide-react';
+import { TrendingUp, DollarSign, BookOpen, Users as UsersIcon, ShieldCheck, CoinsIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { CustomLineChart } from '@/components/charts/LineChart';
@@ -93,7 +93,7 @@ export default function ManagePage() {
                 <StatCard title="Users with 2FA" value={data.usersWith2FA.toLocaleString()} icon={ShieldCheck} />
                 {/* <StatCard title="Avg Rating" value={data.averageRating.toFixed(2)} icon={Star} /> */}
                 {/* <StatCard title="Upcoming Schedules" value={data.upcomingSchedules.toLocaleString()} icon={CalendarClock} /> */}
-                <StatCard title="Revenue (30d)" value={formatCurrency(data.revenueLast30Days)} icon={DollarSign} />
+                <StatCard title="Revenue (30d)" value={formatCurrency(data.revenueLast30Days)} icon={CoinsIcon} />
               </div>
 
               {/* Revenue trend and Tutor statuses */}
