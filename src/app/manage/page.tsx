@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import { analyticsAPI } from '@/API/analytics';
 import type { AnalyticsOverviewDto } from '@/types';
+import { formatCurrency } from '@/utils/helpers';
 
 export default function ManagePage() {
   const [data, setData] = React.useState<AnalyticsOverviewDto | null>(null);
@@ -92,7 +93,7 @@ export default function ManagePage() {
                 <StatCard title="Users with 2FA" value={data.usersWith2FA.toLocaleString()} icon={ShieldCheck} />
                 {/* <StatCard title="Avg Rating" value={data.averageRating.toFixed(2)} icon={Star} /> */}
                 {/* <StatCard title="Upcoming Schedules" value={data.upcomingSchedules.toLocaleString()} icon={CalendarClock} /> */}
-                <StatCard title="Revenue (30d)" value={`$${data.revenueLast30Days.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} icon={DollarSign} />
+                <StatCard title="Revenue (30d)" value={formatCurrency(data.revenueLast30Days)} icon={DollarSign} />
               </div>
 
               {/* Revenue trend and Tutor statuses */}
@@ -103,7 +104,7 @@ export default function ManagePage() {
                       <CardTitle>Revenue Last 6 Months</CardTitle>
                       <div className="flex items-center gap-2 text-green-600">
                         <TrendingUp size={20} />
-                        <span className="text-sm font-medium">Total: ${data.totalRevenue.toLocaleString()}</span>
+                        <span className="text-sm font-medium">Total: {formatCurrency(data.totalRevenue)}</span>
                       </div>
                     </div>
                   </CardHeader>
@@ -224,7 +225,7 @@ export default function ManagePage() {
                       </div>
                       <div>
                         <p className="text-xs text-text-light">Revenue (30d)</p>
-                        <p className="text-lg font-bold text-text">${data.revenueLast30Days.toLocaleString()}</p>
+                        <p className="text-lg font-bold text-text">{formatCurrency(data.revenueLast30Days)}</p>
                       </div>
                     </div>
                   </CardContent>
