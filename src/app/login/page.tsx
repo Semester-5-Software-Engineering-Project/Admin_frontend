@@ -247,20 +247,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Demo Credentials */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border-2 border-yellow-200 shadow-sm"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-              <p className="text-sm font-bold text-black">Demo Credentials:</p>
-            </div>
-            <p className="text-xs text-gray-700 font-medium">Email: <span className="text-black">admin@tutorverse.com</span></p>
-            <p className="text-xs text-gray-700 font-medium">Password: <span className="text-black">admin123</span></p>
-          </motion.div>
+        
         </motion.div>
 
         {/* Footer */}
