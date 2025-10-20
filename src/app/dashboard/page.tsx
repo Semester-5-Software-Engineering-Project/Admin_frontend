@@ -275,7 +275,7 @@ export default function DashboardPage() {
                     <h3 className="text-5xl font-bold mb-3 text-red-400">Error</h3>
                   ) : totalRevenue !== null ? (
                     <h3 className="text-5xl font-bold mb-3 bg-gradient-to-r from-yellow-400 to-yellow-500 bg-clip-text text-transparent drop-shadow-lg">
-                      {<span className="text-4xl font-bold text-yellow-400">LKR {totalRevenue}</span>}
+                      {formatCurrency(totalRevenue)}
                     </h3>
                   ) : (
                     <div className="mb-3">

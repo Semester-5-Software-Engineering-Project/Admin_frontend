@@ -13,6 +13,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import Avatar from '@/components/ui/Avatar';
+import { formatCurrency } from '@/utils/helpers';
 import EmptyState from '@/components/ui/EmptyState';
 import { downloadCSV } from '@/utils/helpers';
 import { fetchAllStudents, banStudent as apiBanStudent, unbanStudent as apiUnbanStudent, fetchStudentTotalSpent, fetchStudentModules, mapStudentEntityToUI, UIStudent } from '@/API/student';
@@ -333,7 +334,7 @@ export default function StudentsPage() {
                           {student.totalSpentLoading ? (
                             <span className="animate-pulse text-text-light text-sm">Loading...</span>
                           ) : (
-                            `$${(student.totalSpent ?? 0).toFixed(2)}`
+                            formatCurrency(student.totalSpent ?? 0)
                           )}
                         </td>
                         <td className="p-4 text-text-light" onClick={(e)=>{e.stopPropagation(); handleRowNavigate(student.id);}}>{student.enrolledAt}</td>
@@ -415,7 +416,7 @@ export default function StudentsPage() {
             </div>
             <div>
               <label className="text-sm font-medium text-text-light">Total Spent</label>
-              <p className="text-text font-semibold text-lg">${selectedStudent.totalSpent?.toFixed(2) || '0.00'}</p>
+              <p className="text-text font-semibold text-lg">{formatCurrency(selectedStudent.totalSpent || 0)}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-text-light">Enrolled Since</label>

@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { fetchStudentById, fetchStudentTotalSpent, fetchStudentModules, mapStudentEntityToUI } from '@/API/student';
 import type { StudentModuleDto } from '@/types';
+import { formatCurrency } from '@/utils/helpers';
 
 const DEBUG_STUDENT = process.env.NEXT_PUBLIC_DEBUG_STUDENT === 'true';
 
@@ -90,7 +91,7 @@ export default function StudentProfilePage() {
                 </div>
                 <div>
                   <p className="text-text-light text-xs uppercase tracking-wide">Total Spent</p>
-                  <p className="text-text font-semibold text-lg">{totalLoading ? 'Loading...' : `$${(totalSpent ?? 0).toFixed(2)}`}</p>
+                  <p className="text-text font-semibold text-lg">{totalLoading ? 'Loading...' : formatCurrency(totalSpent ?? 0)}</p>
                 </div>
               </CardContent>
             </Card>
