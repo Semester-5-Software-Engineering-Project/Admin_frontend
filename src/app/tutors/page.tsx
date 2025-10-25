@@ -224,9 +224,9 @@ export default function TutorsPage() {
       <div className="p-6 space-y-6">
         {/* Debug toggle */}
         <div className="flex justify-end -mb-4">
-          <Button size="sm" variant={showModulesDebug ? 'danger' : 'outline'} onClick={() => setShowModulesDebug(v => !v)}>
+          {/* <Button size="sm" variant={showModulesDebug ? 'danger' : 'outline'} onClick={() => setShowModulesDebug(v => !v)}>
             {showModulesDebug ? 'Hide Modules Debug' : 'Show Modules Debug'}
-          </Button>
+          </Button> */}
         </div>
         {/* Header */}
         <div>
@@ -422,7 +422,7 @@ export default function TutorsPage() {
                         </td>
                         <td className="p-4">
                           <div className="text-sm font-medium text-text">
-                            ${tutor.totalEarnings.toLocaleString()}
+                            LKR {tutor.totalEarnings.toLocaleString()}
                           </div>
                         </td>
                         <td className="p-4">
@@ -450,7 +450,7 @@ export default function TutorsPage() {
                                 <Ban className="h-4 w-4" />
                               </Button>
                             )}
-                            <Button
+                            {/* <Button
                               size="sm"
                               variant="outline"
                               onClick={() => {
@@ -459,7 +459,7 @@ export default function TutorsPage() {
                               }}
                             >
                               <Mail className="h-4 w-4" />
-                            </Button>
+                            </Button> */}
                           </div>
                         </td>
                       </motion.tr>

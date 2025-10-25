@@ -101,7 +101,7 @@ export default function TutorProfilePage() {
                     {tutor.bio && <p className="text-sm text-text leading-relaxed max-w-2xl">{tutor.bio}</p>}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                       <Stat label="Students" value={tutor.studentsCount} />
-                      <Stat label="Earnings" value={`$${tutor.totalEarnings.toLocaleString()}`} />
+                      <Stat label="Earnings" value={`LKR ${tutor.totalEarnings.toLocaleString()}`} />
                       <Stat label="Modules" value={tutor.modules.length} />
                       <Stat label="Joined" value={new Date(tutor.createdAt).toLocaleDateString()} />
                     </div>
@@ -113,7 +113,7 @@ export default function TutorProfilePage() {
                     {tutor.status !== 'BANNED' && (
                       <Button disabled={updating} onClick={handleBan} variant="danger" className="w-full"> <Ban className="h-4 w-4 mr-1"/> Ban</Button>
                     )}
-                    <Button variant="outline" className="w-full"> <Mail className="h-4 w-4 mr-1"/> Email</Button>
+                    {/* <Button variant="outline" className="w-full"> <Mail className="h-4 w-4 mr-1"/> Email</Button> */}
                   </div>
                 </div>
               </CardContent>
@@ -142,7 +142,7 @@ export default function TutorProfilePage() {
                           <div className="text-xs text-text-muted">Duration: {m.duration}</div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-text-muted">Fee</span>
-                            <span className="font-semibold text-text">${m.fee.toLocaleString()}</span>
+                            <span className="font-semibold text-text">LKR {m.fee.toLocaleString()}</span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-text-muted">Avg Ratings</span>
@@ -167,7 +167,7 @@ export default function TutorProfilePage() {
                   <Info label="City" value={tutor.city || '—'} />
                   <Info label="Country" value={tutor.country || '—'} />
                   <Info label="Portfolio" value={tutor.portfolio ? <a className="text-primary underline" href={tutor.portfolio} target="_blank" rel="noreferrer">View</a> : '—'} />
-                  <Info label="Last Accessed" value={tutor.lastAccessed ? new Date(tutor.lastAccessed).toLocaleDateString() : '—'} />
+                  {/* <Info label="Last Accessed" value={tutor.lastAccessed ? new Date(tutor.lastAccessed).toLocaleDateString() : '—'} /> */}
                   <Info label="Updated" value={new Date(tutor.updatedAt).toLocaleDateString()} />
                 </div>
               </CardContent>
