@@ -308,9 +308,9 @@ export default function AdminPanelPage() {
                                     <p className="text-sm text-gray-600 line-clamp-2 break-words">{a.content}</p>
                                   </div>
                                   <div className="flex flex-col sm:items-end gap-2 shrink-0">
-                                    <Badge variant={a.isActive ? 'success' : 'default'}>
+                                    {/* <Badge variant={a.isActive ? 'success' : 'default'}>
                                       {a.isActive ? 'Active' : 'Inactive'}
-                                    </Badge>
+                                    </Badge> */}
                                     <Button
                                       variant="ghost"
                                       size="sm"

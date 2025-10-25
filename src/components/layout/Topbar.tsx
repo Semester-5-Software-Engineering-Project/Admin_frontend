@@ -57,13 +57,13 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
         <div className="flex items-center gap-4">
           {/* Notifications */}
           <div className="relative">
-            <button
+            {/* <button
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative p-2.5 rounded-xl hover:bg-yellow-50 transition-all duration-200 group"
             >
               <Bell size={24} className="text-gray-700 group-hover:text-yellow-600 group-hover:scale-110 transition-all" />
               <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-yellow-500 rounded-full animate-pulse shadow-lg" />
-            </button>
+            </button> */}
 
             <AnimatePresence>
               {showNotifications && (
