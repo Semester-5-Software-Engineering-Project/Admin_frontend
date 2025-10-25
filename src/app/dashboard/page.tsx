@@ -486,7 +486,7 @@ export default function DashboardPage() {
                         >
                           <div className="flex items-start justify-between mb-2">
                             <h4 className="font-bold text-black group-hover:text-yellow-700 transition-colors">{a.title}</h4>
-                            <Badge variant="success" size="sm">Active</Badge>
+                            {/* <Badge variant="success" size="sm">Active</Badge> */}
                           </div>
                           <p className="text-sm text-gray-600 font-medium mb-2 break-words overflow-hidden">{a.content}</p>
                           <span className="text-xs text-gray-500 font-semibold">
